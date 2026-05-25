@@ -1,0 +1,40 @@
+appId: br.com.bitwhat.app
+productName: BitWhat
+copyright: Copyright © 2026 BitWhat
+
+directories:
+  output: dist
+
+artifactName: '${productName}-${version}-Setup.${ext}'
+
+files:
+  - out/**
+  - package.json
+
+extraResources:
+  - from: build
+    to: build
+    filter:
+      - '**/*'
+
+asar: true
+
+win:
+  icon: build/icon.ico
+  signAndEditExecutable: false
+  target:
+    - target: nsis
+      arch:
+        - x64
+  requestedExecutionLevel: asInvoker
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  shortcutName: BitWhat
