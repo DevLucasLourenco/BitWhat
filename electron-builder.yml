@@ -7,6 +7,12 @@ directories:
 
 artifactName: '${productName}-${version}-Setup.${ext}'
 
+publish:
+  provider: github
+  owner: bitwhat
+  repo: bitwhat
+  releaseType: release
+
 files:
   - out/**
   - package.json

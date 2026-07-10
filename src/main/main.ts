@@ -1,5 +1,6 @@
 import { app } from 'electron'
 import { APP_ID } from '../shared/types'
+import { disposeAutoUpdater, setupAutoUpdater } from './services/auto-updater'
 import { applyLoginItemSettings, registerIpc } from './ipc'
 import { logger } from './services/logger'
 import { SessionManager } from './services/session-manager'
@@ -8,6 +9,10 @@ import { TrayManager } from './services/tray-manager'
 import { WindowManager } from './services/window-manager'
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock()
+
+if (app.isPackaged) {
+  app.commandLine.appendSwitch('js-flags', '--expose-gc')
+}
 
 if (!gotSingleInstanceLock) {
   app.quit()
@@ -38,12 +43,18 @@ if (!gotSingleInstanceLock) {
     const shouldStartHidden = process.argv.includes('--hidden') || preferences.startMinimized
     await windowManager.create(shouldStartHidden)
 
+    const mainWindow = windowManager.getWindow()
+    if (mainWindow) {
+      setupAutoUpdater(mainWindow)
+    }
+
     logger.info('Aplicação pronta')
   })
 
   app.on('before-quit', () => {
     windowManager?.setQuitting(true)
     windowManager?.disposeGlobalShortcuts()
+    disposeAutoUpdater()
   })
 
   app.on('activate', () => {
