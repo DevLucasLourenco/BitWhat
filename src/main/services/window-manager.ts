@@ -247,8 +247,9 @@ export class WindowManager {
       return
     }
 
-    if (process.env.ELECTRON_RENDERER_URL) {
-      await this.mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
+    const rendererUrl = process.env['ELECTRON_RENDERER_URL']
+    if (rendererUrl) {
+      await this.mainWindow.loadURL(rendererUrl)
       return
     }
 
@@ -619,7 +620,7 @@ export class WindowManager {
       return
     }
 
-    const [width, height] = this.mainWindow.getContentSize()
+    const [width = 0, height = 0] = this.mainWindow.getContentSize()
     this.whatsappView.setBounds({
       x: 0,
       y: this.chromeHeight,

@@ -77,7 +77,11 @@ export function App(): JSX.Element {
       return
     }
 
-    const resizeObserver = new ResizeObserver(([entry]) => {
+    const resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (!entry) {
+        return
+      }
       window.bitWhat.setChromeHeight(Math.ceil(entry.contentRect.height))
     })
 
@@ -88,7 +92,7 @@ export function App(): JSX.Element {
   }, [settingsOpen])
 
   useEffect(() => {
-    document.documentElement.dataset.theme = preferences.theme
+    document.documentElement.dataset['theme'] = preferences.theme
   }, [preferences.theme])
 
   async function setPreferences(next: Partial<AppPreferences>): Promise<void> {
