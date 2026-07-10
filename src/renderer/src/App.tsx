@@ -187,6 +187,15 @@ export function App(): JSX.Element {
 
         {status.detail && <p className={`status-detail status-${statusTone}`}>{status.detail}</p>}
 
+        {status.state === 'connection-error' && (
+          <div className="settings-actions">
+            <button className="text-button" type="button" onClick={reloadWhatsApp} disabled={busyAction !== null}>
+              <RefreshCw size={16} />
+              Tentar novamente
+            </button>
+          </div>
+        )}
+
         {settingsOpen && (
           <section className="settings-panel" aria-label="Configurações">
             <div className="settings-grid">

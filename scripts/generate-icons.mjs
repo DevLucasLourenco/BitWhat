@@ -66,7 +66,7 @@ function drawLine(pixels, width, height, x1, y1, x2, y2, thickness, color) {
   }
 }
 
-function createIconPng(size) {
+function createIconPng(size, baseColor = [14, 108, 82]) {
   const pixels = Buffer.alloc(size * size * 4)
   const radius = Math.round(size * 0.18)
 
@@ -81,9 +81,9 @@ function createIconPng(size) {
 
       const vertical = y / Math.max(1, size - 1)
       const horizontal = x / Math.max(1, size - 1)
-      pixels[index] = Math.round(14 + 20 * horizontal)
-      pixels[index + 1] = Math.round(108 + 42 * vertical)
-      pixels[index + 2] = Math.round(82 + 26 * horizontal)
+      pixels[index] = Math.round(baseColor[0] + 20 * horizontal)
+      pixels[index + 1] = Math.round(baseColor[1] + 42 * vertical)
+      pixels[index + 2] = Math.round(baseColor[2] + 26 * horizontal)
       pixels[index + 3] = 255
     }
   }
@@ -181,6 +181,17 @@ const images = sizes.map((size) => ({ size, buffer: createIconPng(size) }))
 writeFileSync(resolve(buildDir, 'icon.png'), images.at(-1).buffer)
 writeFileSync(resolve(buildDir, 'tray.png'), images.find((image) => image.size === 32).buffer)
 writeFileSync(resolve(buildDir, 'icon.ico'), createIco(images))
+
+const statusVariants = {
+  loading: [245, 158, 11],
+  attention: [59, 130, 246],
+  error: [239, 68, 68]
+}
+
+for (const [name, color] of Object.entries(statusVariants)) {
+  const variant = createIconPng(32, color)
+  writeFileSync(resolve(buildDir, `tray-${name}.png`), variant)
+}
 
 const svgPath = resolve(buildDir, 'icon.svg')
 mkdirSync(dirname(svgPath), { recursive: true })

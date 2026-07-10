@@ -33,6 +33,7 @@ if (!gotSingleInstanceLock) {
 
     const trayManager = new TrayManager(windowManager, sessionManager)
     trayManager.create()
+    windowManager.setTrayManager(trayManager)
 
     const shouldStartHidden = process.argv.includes('--hidden') || preferences.startMinimized
     await windowManager.create(shouldStartHidden)
@@ -42,6 +43,7 @@ if (!gotSingleInstanceLock) {
 
   app.on('before-quit', () => {
     windowManager?.setQuitting(true)
+    windowManager?.disposeGlobalShortcuts()
   })
 
   app.on('activate', () => {
