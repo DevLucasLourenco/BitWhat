@@ -62,24 +62,24 @@ const rafCanceler: (id: number) => void =
     : (id) => clearTimeout(id)
 
 export class WindowManager {
-  private mainWindow?: BrowserWindow
-  private whatsappView?: BrowserView
+  private mainWindow?: BrowserWindow | undefined
+  private whatsappView?: BrowserView | undefined
   private readonly settingsStore: SettingsStore
   private readonly sessionManager: SessionManager
-  private trayManager?: TrayManager
+  private trayManager?: TrayManager | undefined
   private status: WhatsAppStatus = this.createStatus('initializing', 'Inicializando')
   private chromeHeight: number
-  private saveBoundsTimer?: NodeJS.Timeout
-  private panelCssKey?: string
-  private themeCssKey?: string
+  private saveBoundsTimer?: NodeJS.Timeout | undefined
+  private panelCssKey?: string | undefined
+  private themeCssKey?: string | undefined
   private isQuitting = false
   private allowProgrammaticEscape = false
   private currentPanel: WhatsAppPanelMode = resolveWhatsAppPanelMode(DEFAULT_PREFERENCES)
-  private boundsBeforeMini?: Rectangle
+  private boundsBeforeMini?: Rectangle | undefined
   private reloadAttempts = 0
-  private loadTimeoutTimer?: NodeJS.Timeout
-  private resizeRafId?: number
-  private gcInterval?: NodeJS.Timeout
+  private loadTimeoutTimer?: NodeJS.Timeout | undefined
+  private resizeRafId?: number | undefined
+  private gcInterval?: NodeJS.Timeout | undefined
 
   constructor(settingsStore: SettingsStore, sessionManager: SessionManager) {
     this.settingsStore = settingsStore
@@ -522,12 +522,17 @@ export class WindowManager {
   }
 
   private createStatus(state: WhatsAppStatus['state'], label: string, detail?: string): WhatsAppStatus {
-    return {
+    const status: WhatsAppStatus = {
       state,
       label,
-      detail,
       updatedAt: new Date().toISOString()
     }
+
+    if (detail !== undefined) {
+      status.detail = detail
+    }
+
+    return status
   }
 
   private getInitialBounds(): Rectangle {
