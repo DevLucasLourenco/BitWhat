@@ -24,9 +24,14 @@ html[data-bitwhat-panel="mini-chat"] #app {
   inset: 0 !important;
 }
 
-html[data-bitwhat-panel="contacts"] #app > :not(#bitwhat-stage),
-html[data-bitwhat-panel="chat"] #app > :not(#bitwhat-stage),
-html[data-bitwhat-panel="mini-chat"] #app > :not(#bitwhat-stage) {
+html[data-bitwhat-panel="contacts"] #app:not([data-bitwhat-connected-projection="true"]) > :not(#bitwhat-stage),
+html[data-bitwhat-panel="chat"] #app:not([data-bitwhat-connected-projection="true"]) > :not(#bitwhat-stage),
+html[data-bitwhat-panel="mini-chat"] #app:not([data-bitwhat-connected-projection="true"]) > :not(#bitwhat-stage) {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+[data-bitwhat-panel-hidden="true"] {
   display: none !important;
   visibility: hidden !important;
 }
@@ -70,6 +75,31 @@ html[data-bitwhat-panel="mini-chat"] #app > :not(#bitwhat-stage) {
 #bitwhat-stage[data-panel="contacts"] [data-bitwhat-contacts-fill="true"],
 #bitwhat-stage[data-panel="contacts"] [data-bitwhat-contact-list="true"] {
   background: var(--background-default, var(--panel-background-lighter, transparent)) !important;
+}
+
+html[data-bitwhat-panel="contacts"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-contacts-shell="true"],
+html[data-bitwhat-panel="contacts"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-contacts-fill="true"] {
+  display: flex !important;
+  flex: 1 1 auto !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  overflow: hidden !important;
+}
+
+html[data-bitwhat-panel="contacts"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-contact-list="true"] {
+  display: block !important;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
 }
 
 #bitwhat-stage[data-panel="contacts"] [data-bitwhat-contacts-fill="true"] {
@@ -123,6 +153,20 @@ html[data-bitwhat-panel="mini-chat"] #app > :not(#bitwhat-stage) {
   overflow: hidden !important;
 }
 
+html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-chat-shell="true"],
+html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-chat-fill="true"],
+html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-chat-panel="true"] {
+  display: flex !important;
+  flex: 1 1 auto !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  overflow: hidden !important;
+}
+
 #bitwhat-stage[data-panel="chat"],
 #bitwhat-stage[data-panel="chat"] [data-bitwhat-chat-shell="true"],
 #bitwhat-stage[data-panel="chat"] [data-bitwhat-chat-fill="true"],
@@ -139,7 +183,18 @@ html[data-bitwhat-panel="mini-chat"] #app > :not(#bitwhat-stage) {
   padding-inline: 12px !important;
 }
 
+html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-chat-panel="true"] header {
+  min-height: 56px !important;
+  padding-inline: 12px !important;
+}
+
 #bitwhat-stage[data-panel="chat"] [data-bitwhat-chat-panel="true"] header > :first-child {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  flex: 1 1 auto !important;
+}
+
+html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-chat-panel="true"] header > :first-child {
   min-width: 0 !important;
   max-width: 100% !important;
   flex: 1 1 auto !important;
@@ -153,11 +208,64 @@ html[data-bitwhat-panel="mini-chat"] #app > :not(#bitwhat-stage) {
   opacity: 1 !important;
 }
 
+html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-chat-composer="true"] {
+  display: flex !important;
+  flex: 0 0 auto !important;
+  min-height: 52px !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
 #bitwhat-stage[data-panel="chat"] [data-bitwhat-chat-composer="true"] [contenteditable="true"],
 #bitwhat-stage[data-panel="chat"] [data-bitwhat-chat-composer="true"] textarea,
 #bitwhat-stage[data-panel="chat"] [data-bitwhat-chat-composer="true"] [role="textbox"] {
   visibility: visible !important;
   opacity: 1 !important;
+}
+
+html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-chat-composer="true"] [contenteditable="true"],
+html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-chat-composer="true"] textarea,
+html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-chat-composer="true"] [role="textbox"] {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+#bitwhat-stage[data-panel="chat"] [data-bitwhat-chat-composer="true"] [data-testid="compose-box"],
+html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-chat-composer="true"] [data-testid="compose-box"] {
+  flex: 1 1 auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+}
+
+#bitwhat-stage[data-panel="chat"] [data-bitwhat-chat-composer="true"] :has(> [data-testid="conversation-compose-box-input"]),
+html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-chat-composer="true"] :has(> [data-testid="conversation-compose-box-input"]) {
+  display: flex !important;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+#bitwhat-stage[data-panel="chat"] [data-bitwhat-chat-composer="true"] [data-testid="conversation-compose-box-input"],
+html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-chat-composer="true"] [data-testid="conversation-compose-box-input"] {
+  display: block !important;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  min-width: 32px !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+@media (max-width: 520px) {
+  #bitwhat-stage[data-panel="chat"] [data-bitwhat-chat-composer="true"] [data-testid="compose-box"] button:not(:has([data-icon="mic-outlined"], [data-testid="mic-outlined"], [data-icon*="send" i], [data-testid*="send" i])),
+  html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-chat-composer="true"] [data-testid="compose-box"] button:not(:has([data-icon="mic-outlined"], [data-testid="mic-outlined"], [data-icon*="send" i], [data-testid*="send" i])) {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  #bitwhat-stage[data-panel="chat"] [data-bitwhat-chat-composer="true"] [data-testid="conversation-compose-box-input"],
+  html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-chat-composer="true"] [data-testid="conversation-compose-box-input"] {
+    min-width: 96px !important;
+  }
 }
 
 #bitwhat-stage[data-panel="mini-chat"] [data-bitwhat-chat-panel="true"] {
@@ -458,6 +566,18 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     });
   };
 
+  const clearHiddenAttributes = (items) => {
+    if (!Array.isArray(items)) {
+      return;
+    }
+
+    items.forEach((element) => {
+      if (element instanceof HTMLElement) {
+        element.removeAttribute('data-bitwhat-panel-hidden');
+      }
+    });
+  };
+
   const restoreState = (state) => {
     if (!state) {
       return;
@@ -504,6 +624,11 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
       state.chatComposer.removeAttribute('data-bitwhat-chat-composer');
     }
 
+    if (state.appRoot instanceof HTMLElement) {
+      state.appRoot.removeAttribute('data-bitwhat-connected-projection');
+    }
+
+    clearHiddenAttributes(state.hidden);
     clearPanelAttributes(state.fillPath);
     state.stage?.remove?.();
     restoreCollection(state.detached);
@@ -524,6 +649,8 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     chatComposer: undefined,
     miniLayout: undefined,
     miniMoved: [],
+    connectedProjection: false,
+    hidden: [],
     fillPath: [],
     placeholder: undefined,
     detached: [],
@@ -772,6 +899,15 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
       return;
     }
 
+    if (
+      collection === state.pruned &&
+      requestedPanel === 'chat' &&
+      isElement(node) &&
+      isChatComposerPart(node)
+    ) {
+      return;
+    }
+
     if (collection === state.detached && state.stage?.contains?.(node)) {
       return;
     }
@@ -826,6 +962,32 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
       }
 
       detachNode(child, state.pruned);
+    });
+  };
+
+  const isolateDescendantConnected = (container, keep, fillAttribute) => {
+    if (!isElement(container) || !isElement(keep) || container === keep || !container.contains(keep)) {
+      return;
+    }
+
+    Array.from(container.children).forEach((child) => {
+      if (!(child instanceof HTMLElement)) {
+        return;
+      }
+
+      if (child === keep) {
+        return;
+      }
+
+      if (child.contains(keep)) {
+        child.setAttribute(fillAttribute, 'true');
+        state.fillPath.push(child);
+        isolateDescendantConnected(child, keep, fillAttribute);
+        return;
+      }
+
+      child.setAttribute('data-bitwhat-panel-hidden', 'true');
+      state.hidden.push(child);
     });
   };
 
@@ -899,8 +1061,12 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     return textbox.parentElement instanceof HTMLElement ? textbox.parentElement : textbox;
   };
 
-  const markChatComposer = (chatPanel) => {
-    const composer = findChatComposer(chatPanel);
+  const markChatComposer = (chatPanel, fallbackScope = chatPanel) => {
+    const composer =
+      findChatComposer(chatPanel) ||
+      (isElement(fallbackScope) && fallbackScope !== chatPanel
+        ? findChatComposer(fallbackScope)
+        : null);
     if (composer instanceof HTMLElement) {
       composer.setAttribute('data-bitwhat-chat-composer', 'true');
       state.chatComposer = composer;
@@ -1263,10 +1429,17 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     }
 
     markChatPath(shell, main);
+    // Detect the composer before pruning so a composer rendered beside #main
+    // is preserved. Do not wait for it, though: on WhatsApp's compact layout
+    // the composer may only be mounted after the contacts pane is removed and
+    // the conversation receives the full viewport width.
+    if (requestedPanel === 'chat') {
+      markChatComposer(main, shell);
+    }
     isolateDescendant(shell, main, 'data-bitwhat-chat-fill');
     markMiniChatParts(main);
     if (requestedPanel === 'chat') {
-      markChatComposer(main);
+      markChatComposer(main, shell);
     }
     removeWindowsDownloadFooter(main);
 
@@ -1308,7 +1481,76 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     }
   };
 
+  const refreshConnectedProjection = () => {
+    const appRoot = state.appRoot;
+    const pane = state.moved;
+    if (!isElement(appRoot) || !isElement(pane) || !pane.isConnected) {
+      return false;
+    }
+
+    clearHiddenAttributes(state.hidden);
+    state.hidden = [];
+
+    if (requestedPanel === 'contacts') {
+      const list = state.contactList;
+      if (!isElement(list) || !pane.contains(list)) {
+        return false;
+      }
+
+      markContactPath(pane, list);
+      isolateDescendantConnected(appRoot, pane, 'data-bitwhat-contacts-fill');
+      return true;
+    }
+
+    const main = state.chatPanel;
+    if (!isElement(main) || !pane.contains(main)) {
+      return false;
+    }
+
+    markChatPath(pane, main);
+    isolateDescendantConnected(appRoot, pane, 'data-bitwhat-chat-fill');
+    isolateDescendantConnected(pane, main, 'data-bitwhat-chat-fill');
+    markChatComposer(main, pane);
+    return true;
+  };
+
+  const mountConnectedPanel = (activePane, contactList, chatPanel) => {
+    if (!isElement(activePane) || !activePane.parentNode) {
+      root.removeAttribute('data-bitwhat-panel');
+      root.setAttribute('data-bitwhat-panel-pending', requestedPanel);
+      publishDiagnostic('aguardando painel conectado ' + requestedPanel);
+      return false;
+    }
+
+    const appRoot = getAppRoot();
+    state.appRoot = appRoot;
+    state.moved = activePane;
+    state.contactList = contactList;
+    state.chatPanel = chatPanel;
+    state.connectedProjection = true;
+
+    appRoot.setAttribute('data-bitwhat-connected-projection', 'true');
+    root.removeAttribute('data-bitwhat-panel-pending');
+    root.setAttribute('data-bitwhat-panel', requestedPanel);
+    refreshConnectedProjection();
+    publishDiagnostic(
+      'painel conectado ' +
+        requestedPanel +
+        ' aplicado; shell=' +
+        describeElement(activePane) +
+        '; lista=' +
+        describeElement(contactList) +
+        '; chat=' +
+        describeElement(chatPanel)
+    );
+    return true;
+  };
+
   const mountPanel = (activePane, contactList, chatPanel) => {
+    if (requestedPanel !== 'mini-chat') {
+      return mountConnectedPanel(activePane, contactList, chatPanel);
+    }
+
     if (!isElement(activePane) || !activePane.parentNode) {
       root.removeAttribute('data-bitwhat-panel');
       root.setAttribute('data-bitwhat-panel-pending', requestedPanel);
@@ -1359,6 +1601,10 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
   };
 
   const applyPanel = () => {
+    if (state.connectedProjection) {
+      return refreshConnectedProjection();
+    }
+
     if (state.stage) {
       if (requestedPanel === 'contacts') {
         pruneContactsPane();
@@ -1384,12 +1630,13 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     }
 
     const target = event.target instanceof Element ? event.target : null;
-    if (!target || !state.stage?.contains?.(target)) {
+    const contactList = state.contactList;
+    if (!target || !(contactList instanceof HTMLElement) || !contactList.contains(target)) {
       return;
     }
 
     const row = target.closest(contactRowSelector + ', [tabindex]');
-    if (!row || !state.stage.contains(row)) {
+    if (!row || !contactList.contains(row)) {
       return;
     }
 

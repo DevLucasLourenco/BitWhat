@@ -10,8 +10,8 @@ import { logger } from './logger'
 
 interface StoredSettings {
   preferences: AppPreferences
-  windowBounds?: Rectangle
-  chromeHeight?: number
+  windowBounds?: Rectangle | undefined
+  chromeHeight?: number | undefined
 }
 
 const SETTINGS_FILE = 'settings.json'

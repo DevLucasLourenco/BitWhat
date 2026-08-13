@@ -10,7 +10,9 @@ export const IPC = {
   quit: 'app:quit',
   openExternal: 'app:open-external',
   statusChanged: 'whatsapp:status-changed',
-  preferencesChanged: 'app:preferences-changed'
+  preferencesChanged: 'app:preferences-changed',
+  updateReady: 'app:update-ready',
+  installUpdate: 'app:install-update'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
