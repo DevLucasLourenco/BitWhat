@@ -10,6 +10,8 @@ import { isWhatsAppOrigin } from './navigation-guard'
 import { logger } from './logger'
 
 const ALLOWED_PERMISSIONS = new Set(['notifications', 'media', 'clipboard-sanitized-write'])
+const STATIC_RESOURCE_TYPES = new Set(['stylesheet', 'script', 'image', 'font'])
+const CACHEABLE_CACHE_CONTROL = 'public, max-age=86400, immutable'
 
 export class SessionManager {
   private readonly whatsappSession: Session
@@ -45,6 +47,26 @@ export class SessionManager {
       })
     })
 
+    this.whatsappSession.webRequest.onHeadersReceived((details, callback) => {
+      const responseHeaders = { ...details.responseHeaders }
+
+      if (isWhatsAppOrigin(details.url)) {
+        responseHeaders['X-Content-Type-Options'] = ['nosniff']
+        responseHeaders['X-Frame-Options'] = ['DENY']
+      }
+
+      if (STATIC_RESOURCE_TYPES.has(details.resourceType) && this.isCacheableOrigin(details.url)) {
+        const existing = responseHeaders['Cache-Control'] ?? responseHeaders['cache-control']
+        const existingValue = Array.isArray(existing) ? existing.join(', ') : existing
+
+        if (!existingValue || !/no-store|no-cache/i.test(existingValue)) {
+          responseHeaders['Cache-Control'] = [CACHEABLE_CACHE_CONTROL]
+        }
+      }
+
+      callback({ responseHeaders })
+    })
+
     this.whatsappSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
       const requestingUrl = details.requestingUrl || webContents.getURL()
       callback(this.isAllowedPermission(webContents, permission, requestingUrl))
@@ -63,6 +85,21 @@ export class SessionManager {
     await this.whatsappSession.clearAuthCache()
     this.whatsappSession.flushStorageData()
     logger.info('Sessão persistente do WhatsApp limpa')
+  }
+
+  private isCacheableOrigin(rawUrl: string): boolean {
+    try {
+      const url = new URL(rawUrl)
+      const hostname = url.hostname.toLowerCase()
+      return (
+        hostname === 'web.whatsapp.com' ||
+        hostname.endsWith('.whatsapp.com') ||
+        hostname.endsWith('.whatsapp.net') ||
+        hostname.endsWith('.fbcdn.net')
+      )
+    } catch {
+      return false
+    }
   }
 
   private isAllowedPermission(webContents: WebContents | null, permission: string, requestingUrl: string): boolean {

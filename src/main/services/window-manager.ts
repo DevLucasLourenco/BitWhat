@@ -2,6 +2,7 @@ import {
   app,
   BrowserView,
   BrowserWindow,
+  globalShortcut,
   Menu,
   screen
 } from 'electron'
@@ -17,6 +18,7 @@ import {
   WHATSAPP_BROWSER_USER_AGENT,
   WHATSAPP_URL,
   WhatsAppPanelMode,
+  WhatsAppState,
   WhatsAppStatus
 } from '../../shared/types'
 import { IPC } from '../../shared/ipc'
@@ -24,6 +26,7 @@ import { getAssetPath } from './assets'
 import { attachNavigationGuard } from './navigation-guard'
 import { SessionManager } from './session-manager'
 import { SettingsStore } from './settings-store'
+import { TrayManager } from './tray-manager'
 import { logger } from './logger'
 import {
   createApplyWhatsAppThemeScript,
@@ -42,20 +45,41 @@ const MINI_WINDOW_WIDTH = 520
 const MINI_VIEW_HEIGHT = 248
 const DEFAULT_MARGIN = 16
 
+const SHORTCUT_TOGGLE_WINDOW = 'CommandOrControl+Shift+W'
+const SHORTCUT_RELOAD_WHATSAPP = 'CommandOrControl+Shift+R'
+const MAX_RELOAD_ATTEMPTS = 3
+const LOAD_TIMEOUT_MS = 25_000
+const GC_INTERVAL_MS = 30 * 60 * 1000
+
+const rafScheduler: (cb: () => void) => number =
+  typeof globalThis.requestAnimationFrame === 'function'
+    ? (cb) => globalThis.requestAnimationFrame(cb)
+    : (cb) => setTimeout(cb, 16) as unknown as number
+
+const rafCanceler: (id: number) => void =
+  typeof globalThis.cancelAnimationFrame === 'function'
+    ? (id) => globalThis.cancelAnimationFrame(id)
+    : (id) => clearTimeout(id)
+
 export class WindowManager {
-  private mainWindow?: BrowserWindow
-  private whatsappView?: BrowserView
+  private mainWindow?: BrowserWindow | undefined
+  private whatsappView?: BrowserView | undefined
   private readonly settingsStore: SettingsStore
   private readonly sessionManager: SessionManager
+  private trayManager?: TrayManager | undefined
   private status: WhatsAppStatus = this.createStatus('initializing', 'Inicializando')
   private chromeHeight: number
-  private saveBoundsTimer?: NodeJS.Timeout
-  private panelCssKey?: string
-  private themeCssKey?: string
+  private saveBoundsTimer?: NodeJS.Timeout | undefined
+  private panelCssKey?: string | undefined
+  private themeCssKey?: string | undefined
   private isQuitting = false
   private allowProgrammaticEscape = false
   private currentPanel: WhatsAppPanelMode = resolveWhatsAppPanelMode(DEFAULT_PREFERENCES)
-  private boundsBeforeMini?: Rectangle
+  private boundsBeforeMini?: Rectangle | undefined
+  private reloadAttempts = 0
+  private loadTimeoutTimer?: NodeJS.Timeout | undefined
+  private resizeRafId?: number | undefined
+  private gcInterval?: NodeJS.Timeout | undefined
 
   constructor(settingsStore: SettingsStore, sessionManager: SessionManager) {
     this.settingsStore = settingsStore
@@ -89,6 +113,7 @@ export class WindowManager {
     this.mainWindow.setAlwaysOnTop(preferences.alwaysOnTop, 'floating')
     this.bindWindowEvents()
     this.createWhatsappView()
+    this.setBackgroundThrottling(false)
     await this.loadRenderer()
     this.loadWhatsApp()
 
@@ -98,7 +123,18 @@ export class WindowManager {
       }
     })
 
+    this.registerGlobalShortcuts()
+    this.startPeriodicGc()
+
     logger.info('Janela principal criada')
+  }
+
+  setTrayManager(trayManager: TrayManager): void {
+    this.trayManager = trayManager
+  }
+
+  disposeGlobalShortcuts(): void {
+    this.unregisterGlobalShortcuts()
   }
 
   getWindow(): BrowserWindow | undefined {
@@ -114,13 +150,19 @@ export class WindowManager {
       return
     }
 
+    this.setBackgroundThrottling(false)
     this.ensureVisibleOnDisplay()
     this.mainWindow.show()
     this.mainWindow.focus()
   }
 
   hide(): void {
-    this.mainWindow?.hide()
+    if (!this.mainWindow) {
+      return
+    }
+
+    this.mainWindow.hide()
+    this.setBackgroundThrottling(true)
   }
 
   toggle(): void {
@@ -142,6 +184,7 @@ export class WindowManager {
     this.whatsappView?.webContents.loadURL(WHATSAPP_URL, {
       userAgent: this.getDesktopChromeUserAgent()
     })
+    this.scheduleLoadTimeout()
   }
 
   markSessionCleared(): void {
@@ -192,6 +235,9 @@ export class WindowManager {
   }
 
   quit(): void {
+    this.unregisterGlobalShortcuts()
+    this.stopPeriodicGc()
+    this.clearLoadTimeout()
     this.isQuitting = true
     app.quit()
   }
@@ -201,8 +247,9 @@ export class WindowManager {
       return
     }
 
-    if (process.env.ELECTRON_RENDERER_URL) {
-      await this.mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL)
+    const rendererUrl = process.env['ELECTRON_RENDERER_URL']
+    if (rendererUrl) {
+      await this.mainWindow.loadURL(rendererUrl)
       return
     }
 
@@ -248,13 +295,17 @@ export class WindowManager {
     })
 
     this.mainWindow.on('resize', () => {
-      this.updateWhatsAppBounds()
-      this.scheduleBoundsSave()
+      this.scheduleResizeUpdate()
     })
 
     this.mainWindow.on('move', () => this.scheduleBoundsSave())
 
     this.mainWindow.on('closed', () => {
+      if (this.resizeRafId !== undefined) {
+        rafCanceler(this.resizeRafId)
+        this.resizeRafId = undefined
+      }
+      this.stopPeriodicGc()
       this.mainWindow = undefined
       this.whatsappView = undefined
     })
@@ -270,15 +321,27 @@ export class WindowManager {
       this.panelCssKey = undefined
       this.themeCssKey = undefined
       this.setStatus(this.createStatus('loading', 'Carregando WhatsApp Web'))
+
+      if (this.mainWindow?.isVisible()) {
+        this.whatsappView?.webContents.setBackgroundThrottling(false)
+      }
     })
 
     webContents.on('dom-ready', () => {
+      this.clearLoadTimeout()
+      if (this.status.state === 'ready' || this.status.state === 'waiting-login') {
+        this.reloadAttempts = 0
+      }
       void this.applyWhatsAppTheme()
       void this.applyWhatsAppPanelMode()
       this.detectWhatsAppState()
     })
 
     webContents.on('did-finish-load', () => {
+      this.clearLoadTimeout()
+      if (this.status.state === 'ready' || this.status.state === 'waiting-login') {
+        this.reloadAttempts = 0
+      }
       void this.applyWhatsAppTheme()
       void this.applyWhatsAppPanelMode()
       this.detectWhatsAppState()
@@ -289,6 +352,7 @@ export class WindowManager {
         return
       }
 
+      this.clearLoadTimeout()
       logger.warn(`Falha ao carregar WhatsApp Web (${errorCode}) em ${validatedUrl}: ${errorDescription}`)
       this.setStatus(
         this.createStatus('connection-error', 'Erro de conexão', 'Não foi possível carregar o WhatsApp Web.')
@@ -345,6 +409,7 @@ export class WindowManager {
     this.whatsappView?.webContents.loadURL(WHATSAPP_URL, {
       userAgent: this.getDesktopChromeUserAgent()
     })
+    this.scheduleLoadTimeout()
   }
 
   private async detectWhatsAppState(): Promise<void> {
@@ -400,6 +465,7 @@ export class WindowManager {
   private setStatus(status: WhatsAppStatus): void {
     this.status = status
     this.mainWindow?.webContents.send(IPC.statusChanged, status)
+    this.trayManager?.updateStatus(status.state)
   }
 
   private async applyWhatsAppPanelMode(panel = resolveWhatsAppPanelMode(this.settingsStore.getPreferences())): Promise<void> {
@@ -456,12 +522,17 @@ export class WindowManager {
   }
 
   private createStatus(state: WhatsAppStatus['state'], label: string, detail?: string): WhatsAppStatus {
-    return {
+    const status: WhatsAppStatus = {
       state,
       label,
-      detail,
       updatedAt: new Date().toISOString()
     }
+
+    if (detail !== undefined) {
+      status.detail = detail
+    }
+
+    return status
   }
 
   private getInitialBounds(): Rectangle {
@@ -518,6 +589,7 @@ export class WindowManager {
       this.mainWindow.setMinimumSize(minimum.width, minimum.height)
 
       this.mainWindow.setContentSize(MINI_WINDOW_WIDTH, minimum.height, true)
+      this.updateWhatsAppBounds()
       this.ensureVisibleOnDisplay()
       return
     }
@@ -528,6 +600,7 @@ export class WindowManager {
 
     if (wasMini && this.boundsBeforeMini) {
       this.mainWindow.setBounds(this.fitBoundsToDisplay(this.boundsBeforeMini), true)
+      this.updateWhatsAppBounds()
       this.boundsBeforeMini = undefined
       this.ensureVisibleOnDisplay()
     }
@@ -552,7 +625,7 @@ export class WindowManager {
       return
     }
 
-    const [width, height] = this.mainWindow.getContentSize()
+    const [width = 0, height = 0] = this.mainWindow.getContentSize()
     this.whatsappView.setBounds({
       x: 0,
       y: this.chromeHeight,
@@ -582,5 +655,122 @@ export class WindowManager {
 
   private getDesktopChromeUserAgent(): string {
     return this.sessionManager.getSession().getUserAgent()
+  }
+
+  private scheduleResizeUpdate(): void {
+    if (this.resizeRafId !== undefined) {
+      return
+    }
+
+    this.resizeRafId = rafScheduler(() => {
+      this.resizeRafId = undefined
+      this.updateWhatsAppBounds()
+      this.scheduleBoundsSave()
+    })
+  }
+
+  private scheduleLoadTimeout(): void {
+    this.clearLoadTimeout()
+    this.loadTimeoutTimer = setTimeout(() => {
+      this.handleLoadTimeout()
+    }, LOAD_TIMEOUT_MS)
+  }
+
+  private clearLoadTimeout(): void {
+    if (this.loadTimeoutTimer) {
+      clearTimeout(this.loadTimeoutTimer)
+      this.loadTimeoutTimer = undefined
+    }
+  }
+
+  private handleLoadTimeout(): void {
+    if (this.status.state === 'ready' || this.status.state === 'waiting-login') {
+      return
+    }
+
+    this.reloadAttempts += 1
+    logger.warn(`Timeout de carregamento. Tentativa ${this.reloadAttempts}/${MAX_RELOAD_ATTEMPTS}`)
+
+    if (this.reloadAttempts >= MAX_RELOAD_ATTEMPTS) {
+      this.setStatus(
+        this.createStatus(
+          'connection-error',
+          'Erro de conexão',
+          'Não foi possível carregar o WhatsApp Web após várias tentativas. Verifique sua conexão.'
+        )
+      )
+      return
+    }
+
+    this.reloadWhatsApp()
+  }
+
+  private setBackgroundThrottling(enabled: boolean): void {
+    try {
+      this.whatsappView?.webContents.setBackgroundThrottling(enabled)
+      this.mainWindow?.webContents.setBackgroundThrottling(enabled)
+      logger.info(`Background throttling ${enabled ? 'ativado' : 'desativado'}`)
+    } catch (error) {
+      logger.warn('Falha ao ajustar background throttling', error)
+    }
+  }
+
+  private registerGlobalShortcuts(): void {
+    const toggleRegistered = globalShortcut.register(SHORTCUT_TOGGLE_WINDOW, () => {
+      this.toggle()
+    })
+
+    if (!toggleRegistered) {
+      logger.warn(`Falha ao registrar atalho global: ${SHORTCUT_TOGGLE_WINDOW}`)
+    }
+
+    const reloadRegistered = globalShortcut.register(SHORTCUT_RELOAD_WHATSAPP, () => {
+      this.reloadWhatsApp()
+    })
+
+    if (!reloadRegistered) {
+      logger.warn(`Falha ao registrar atalho global: ${SHORTCUT_RELOAD_WHATSAPP}`)
+    }
+
+    logger.info('Atalhos globais registrados')
+  }
+
+  private unregisterGlobalShortcuts(): void {
+    globalShortcut.unregister(SHORTCUT_TOGGLE_WINDOW)
+    globalShortcut.unregister(SHORTCUT_RELOAD_WHATSAPP)
+    globalShortcut.unregisterAll()
+    logger.info('Atalhos globais removidos')
+  }
+
+  private startPeriodicGc(): void {
+    if (!app.isPackaged) {
+      return
+    }
+
+    this.gcInterval = setInterval(() => {
+      this.runGarbageCollection()
+    }, GC_INTERVAL_MS)
+  }
+
+  private stopPeriodicGc(): void {
+    if (this.gcInterval) {
+      clearInterval(this.gcInterval)
+      this.gcInterval = undefined
+    }
+  }
+
+  private runGarbageCollection(): void {
+    const gc = (global as { gc?: () => void }).gc
+    if (typeof gc !== 'function') {
+      logger.warn('global.gc não exposto — flag --expose-gc pode não ter surtido efeito')
+      return
+    }
+
+    try {
+      gc()
+      logger.info('GC executado')
+    } catch (error) {
+      logger.warn('Falha ao executar GC', error)
+    }
   }
 }

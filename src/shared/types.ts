@@ -20,7 +20,7 @@ export type WhatsAppState =
 export interface WhatsAppStatus {
   state: WhatsAppState
   label: string
-  detail?: string
+  detail?: string | undefined
   updatedAt: string
 }
 

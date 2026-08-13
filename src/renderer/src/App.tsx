@@ -1,5 +1,6 @@
 import {
   CheckCircle2,
+  DownloadCloud,
   Loader2,
   LogOut,
   Maximize2,
@@ -21,6 +22,7 @@ import {
   ThemePreference,
   WhatsAppStatus
 } from '../../shared/types'
+import type { UpdateInfo } from '../../shared/api'
 
 const DEFAULT_STATUS: WhatsAppStatus = {
   state: 'initializing',
@@ -45,6 +47,7 @@ export function App(): JSX.Element {
   const [preferences, setPreferencesState] = useState<AppPreferences>(DEFAULT_PREFERENCES)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [busyAction, setBusyAction] = useState<'reload' | 'clear' | null>(null)
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null)
 
   const statusTone = useMemo(() => {
     if (status.state === 'ready') return 'ready'
@@ -59,10 +62,12 @@ export function App(): JSX.Element {
 
     const offStatus = window.bitWhat.onStatusChanged(setStatus)
     const offPreferences = window.bitWhat.onPreferencesChanged(setPreferencesState)
+    const offUpdateReady = window.bitWhat.onUpdateReady(setUpdateInfo)
 
     return () => {
       offStatus()
       offPreferences()
+      offUpdateReady()
     }
   }, [])
 
@@ -72,7 +77,11 @@ export function App(): JSX.Element {
       return
     }
 
-    const resizeObserver = new ResizeObserver(([entry]) => {
+    const resizeObserver = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (!entry) {
+        return
+      }
       window.bitWhat.setChromeHeight(Math.ceil(entry.contentRect.height))
     })
 
@@ -83,7 +92,7 @@ export function App(): JSX.Element {
   }, [settingsOpen])
 
   useEffect(() => {
-    document.documentElement.dataset.theme = preferences.theme
+    document.documentElement.dataset['theme'] = preferences.theme
   }, [preferences.theme])
 
   async function setPreferences(next: Partial<AppPreferences>): Promise<void> {
@@ -124,6 +133,22 @@ export function App(): JSX.Element {
 
   return (
     <main className="app-shell">
+      {updateInfo && (
+        <div className="update-banner" role="status" aria-live="polite">
+          <span>
+            <DownloadCloud size={15} />
+            Nova versão {updateInfo.version} disponível.
+          </span>
+          <button
+            className="text-button"
+            type="button"
+            onClick={() => void window.bitWhat.installUpdate()}
+          >
+            Reiniciar agora
+          </button>
+        </div>
+      )}
+
       <section className="chrome" ref={chromeRef}>
         <header className="topbar">
           <div className="brand">
@@ -186,6 +211,15 @@ export function App(): JSX.Element {
         </header>
 
         {status.detail && <p className={`status-detail status-${statusTone}`}>{status.detail}</p>}
+
+        {status.state === 'connection-error' && (
+          <div className="settings-actions">
+            <button className="text-button" type="button" onClick={reloadWhatsApp} disabled={busyAction !== null}>
+              <RefreshCw size={16} />
+              Tentar novamente
+            </button>
+          </div>
+        )}
 
         {settingsOpen && (
           <section className="settings-panel" aria-label="Configurações">
