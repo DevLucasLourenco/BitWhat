@@ -4,6 +4,39 @@ Cliente desktop compacto para WhatsApp Web com Electron, TypeScript, React, Vite
 
 O app encapsula `https://web.whatsapp.com` em uma sessão persistente própria (`partition: "persist:bitwhat"`). O login é feito manualmente dentro do aplicativo, por QR Code ou autenticação normal do WhatsApp Web.
 
+## Sobre a aplicação
+
+O BitWhat é um cliente desktop leve para usar o WhatsApp Web em uma janela
+compacta, sem precisar manter uma aba do navegador aberta. A aplicação foi
+pensada para quem deseja deixar o WhatsApp disponível durante o trabalho, com
+acesso rápido pela bandeja do Windows e controles básicos de janela.
+
+O aplicativo não substitui o WhatsApp Web nem possui um servidor próprio. Ele
+usa o Chromium embutido no Electron para abrir o site oficial do WhatsApp e
+mantém a autenticação em uma sessão local exclusiva do BitWhat.
+
+## Principais recursos
+
+- Janela compacta dedicada ao WhatsApp Web.
+- Ícone na bandeja do Windows para abrir, recarregar, limpar a sessão ou sair.
+- Sessão persistente: o login permanece salvo entre as execuções, até que o
+  usuário escolha limpar a sessão.
+- Visualização de contatos ou de uma conversa específica.
+- Modo de chat padrão ou mini, com redimensionamento automático da janela.
+- Opção de manter a janela sempre no topo.
+- Inicialização minimizada na bandeja ou junto com o Windows.
+- Tema claro, escuro ou baseado no sistema operacional.
+- Indicador de estado da conexão no aplicativo e no ícone da bandeja.
+
+## Como usar
+
+1. Abra o BitWhat pelo atalho criado no Windows.
+2. Na primeira execução, faça login no WhatsApp Web usando o QR Code ou o
+   método de autenticação apresentado pelo próprio WhatsApp.
+3. Use o WhatsApp normalmente dentro da janela do aplicativo.
+4. Feche a janela pelo botão `X` para ocultá-la na bandeja. Para encerrar o
+   processo, escolha `Sair` no menu do ícone da bandeja.
+
 ## Segurança e privacidade
 
 - Não copia, lê, importa ou reutiliza cookies/sessões do Chrome, Edge, Firefox ou qualquer outro navegador.
@@ -33,13 +66,28 @@ npm run dev
 
 O app abre uma janela compacta e também cria o ícone na bandeja do sistema. O botão `X` oculta a janela, mantendo o processo ativo na bandeja.
 
-## Gerar instalador Windows
+## Criar o executável Windows
+
+Com o Node.js LTS 20 ou superior instalado, execute na raiz do projeto:
 
 ```bash
+npm install
 npm run build:win
 ```
 
-O instalador NSIS será gerado em `dist/`.
+O comando compila o aplicativo e gera o instalador NSIS em `dist/`, normalmente
+com o nome `BitWhat-<versão>-Setup.exe`. Esse é o arquivo que deve ser enviado
+ou executado para instalar o BitWhat no Windows.
+
+Para gerar apenas o aplicativo executável, sem instalador, use:
+
+```bash
+npm run build
+npx electron-builder --win dir
+```
+
+Nesse caso, o executável fica em `dist/win-unpacked/BitWhat.exe`. A pasta
+`dist/win-unpacked/` deve ser mantida completa para que o executável funcione.
 
 ## Limpar sessão/logout
 
@@ -61,7 +109,7 @@ O WhatsApp Web não usa o Chrome instalado no Windows quando roda dentro deste a
 - `Limpar sessão/logout`
 - `Sair`
 
-## Configurações do MVP
+## Recursos e configurações
 
 - Navegação automática: clicar em um contato abre o chat; no chat, o botão de sidebar volta aos contatos.
 - Formato do chat: `Padrão` ou `Mini`.
