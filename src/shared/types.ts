@@ -27,7 +27,7 @@ export interface WhatsAppStatus {
 export type ThemePreference = 'system' | 'light' | 'dark'
 export type WhatsAppPanel = 'contacts' | 'chat'
 export type ChatFormat = 'standard' | 'mini'
-export type WhatsAppPanelMode = WhatsAppPanel | 'mini-chat'
+export type WhatsAppPanelMode = WhatsAppPanel | 'mini-chat' | 'image'
 
 export interface AppPreferences {
   alwaysOnTop: boolean
