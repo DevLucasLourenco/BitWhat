@@ -6,7 +6,7 @@ import {
   Menu,
   screen
 } from 'electron'
-import type { Rectangle } from 'electron'
+import type { DownloadItem, Rectangle, WebContents } from 'electron'
 import path from 'node:path'
 import {
   APP_NAME,
@@ -39,6 +39,8 @@ const MIN_WIDTH = 360
 const MIN_HEIGHT = 560
 const DEFAULT_PANEL_WIDTH = 420
 const DEFAULT_PANEL_HEIGHT = 720
+const IMAGE_WINDOW_WIDTH = 760
+const IMAGE_WINDOW_HEIGHT = 800
 const MINI_MIN_WIDTH = 420
 const MINI_MIN_HEIGHT = 260
 const MINI_WINDOW_WIDTH = 520
@@ -61,6 +63,42 @@ const rafCanceler: (id: number) => void =
     ? (id) => globalThis.cancelAnimationFrame(id)
     : (id) => clearTimeout(id)
 
+const getImageFilename = (suggestedFilename: string, imageUrl: string): string => {
+  let filename = suggestedFilename
+
+  if (!filename) {
+    try {
+      const url = new URL(imageUrl)
+      filename = decodeURIComponent(url.pathname.split('/').pop() || '')
+    } catch {
+      filename = ''
+    }
+  }
+
+  const safeFilename = filename
+    .split(/[\\/]/)
+    .pop()
+    ?.replace(/[<>:"|?*\u0000-\u001f]/g, '_')
+    .trim()
+
+  return safeFilename || 'imagem'
+}
+
+const getImageExtension = (mimeType: string): string => {
+  const imageExtensions: Record<string, string> = {
+    'image/avif': 'avif',
+    'image/bmp': 'bmp',
+    'image/gif': 'gif',
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/tiff': 'tiff',
+    'image/webp': 'webp'
+  }
+
+  const normalizedMimeType = mimeType.toLowerCase().split(';')[0] || ''
+  return imageExtensions[normalizedMimeType] || 'png'
+}
+
 export class WindowManager {
   private mainWindow?: BrowserWindow | undefined
   private whatsappView?: BrowserView | undefined
@@ -76,6 +114,8 @@ export class WindowManager {
   private allowProgrammaticEscape = false
   private currentPanel: WhatsAppPanelMode = resolveWhatsAppPanelMode(DEFAULT_PREFERENCES)
   private boundsBeforeMini?: Rectangle | undefined
+  private boundsBeforeImage?: Rectangle | undefined
+  private panelBeforeImage?: WhatsAppPanelMode | undefined
   private reloadAttempts = 0
   private loadTimeoutTimer?: NodeJS.Timeout | undefined
   private resizeRafId?: number | undefined
@@ -317,6 +357,73 @@ export class WindowManager {
       return
     }
 
+    webContents.on('context-menu', (event, params) => {
+      if (params.mediaType !== 'image' || !params.hasImageContents) {
+        return
+      }
+
+      event.preventDefault()
+      const imageUrl = params.srcURL
+      const suggestedFilename = getImageFilename(params.suggestedFilename, imageUrl)
+      const menu = Menu.buildFromTemplate([
+        {
+          label: 'Copiar imagem',
+          click: () => webContents.copyImageAt(params.x, params.y)
+        },
+        {
+          label: 'Salvar imagem como…',
+          enabled: Boolean(imageUrl),
+          click: () => {
+            const whatsappSession = webContents.session
+            let cleanupTimer: NodeJS.Timeout | undefined
+            const cleanup = () => {
+              whatsappSession.removeListener('will-download', onWillDownload)
+              if (cleanupTimer) {
+                clearTimeout(cleanupTimer)
+              }
+            }
+            const onWillDownload = (_downloadEvent: Electron.Event, item: DownloadItem, sourceWebContents: WebContents) => {
+              if (sourceWebContents !== webContents || item.getURL() !== imageUrl) {
+                return
+              }
+
+              const filename = /\.(avif|bmp|gif|jpe?g|png|tiff?|webp)$/i.test(suggestedFilename)
+                ? suggestedFilename
+                : `${suggestedFilename}.${getImageExtension(item.getMimeType())}`
+
+              item.setSaveDialogOptions({
+                title: 'Salvar imagem',
+                defaultPath: filename,
+                filters: [
+                  {
+                    name: 'Imagens',
+                    extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'avif', 'tif', 'tiff']
+                  },
+                  { name: 'Todos os arquivos', extensions: ['*'] }
+                ]
+              })
+              cleanup()
+            }
+
+            whatsappSession.on('will-download', onWillDownload)
+            cleanupTimer = setTimeout(cleanup, 30_000)
+            cleanupTimer.unref()
+
+            try {
+              webContents.downloadURL(imageUrl)
+            } catch (error) {
+              cleanup()
+              logger.warn(`Não foi possível iniciar o download da imagem: ${String(error)}`)
+            }
+          }
+        }
+      ])
+
+      if (this.mainWindow) {
+        menu.popup({ window: this.mainWindow })
+      }
+    })
+
     webContents.on('did-start-loading', () => {
       this.panelCssKey = undefined
       this.themeCssKey = undefined
@@ -391,7 +498,24 @@ export class WindowManager {
       }
 
       const nextPanelMode = message.slice(prefix.length)
-      if (nextPanelMode !== 'contacts' && nextPanelMode !== 'chat' && nextPanelMode !== 'mini-chat') {
+      if (nextPanelMode !== 'contacts' && nextPanelMode !== 'chat' && nextPanelMode !== 'mini-chat' && nextPanelMode !== 'image') {
+        return
+      }
+
+      if (nextPanelMode === 'image') {
+        if (this.currentPanel !== 'image') {
+          this.panelBeforeImage = this.currentPanel
+          this.applyPanelWindowMode('image')
+          void this.applyWhatsAppPanelMode('image')
+        }
+        return
+      }
+
+      if (this.currentPanel === 'image') {
+        const panelToRestore = this.panelBeforeImage ?? resolveWhatsAppPanelMode(this.settingsStore.getPreferences())
+        this.panelBeforeImage = undefined
+        this.applyPanelWindowMode(panelToRestore)
+        void this.applyWhatsAppPanelMode(panelToRestore)
         return
       }
 
@@ -579,6 +703,42 @@ export class WindowManager {
       return
     }
 
+    if (panel === 'image') {
+      if (this.currentPanel !== 'image') {
+        this.boundsBeforeImage = this.mainWindow.getBounds()
+      }
+
+      this.currentPanel = panel
+      this.mainWindow.setMinimumSize(MIN_WIDTH, MIN_HEIGHT)
+
+      const bounds = this.mainWindow.getBounds()
+      const area = screen.getDisplayMatching(bounds).workArea
+      const imageBounds = this.fitBoundsToDisplay({
+        ...bounds,
+        width: Math.min(IMAGE_WINDOW_WIDTH, area.width),
+        height: Math.min(IMAGE_WINDOW_HEIGHT, area.height)
+      })
+      this.mainWindow.setBounds(imageBounds, true)
+      this.updateWhatsAppBounds()
+      this.ensureVisibleOnDisplay()
+      return
+    }
+
+    if (this.currentPanel === 'image') {
+      this.currentPanel = panel
+      const minimum = this.getMinimumWindowSize(panel)
+      this.mainWindow.setMinimumSize(minimum.width, minimum.height)
+
+      if (this.boundsBeforeImage) {
+        this.mainWindow.setBounds(this.fitBoundsToDisplay(this.boundsBeforeImage), true)
+      }
+
+      this.boundsBeforeImage = undefined
+      this.updateWhatsAppBounds()
+      this.ensureVisibleOnDisplay()
+      return
+    }
+
     if (panel === 'mini-chat') {
       if (this.currentPanel !== 'mini-chat') {
         this.boundsBeforeMini = this.mainWindow.getBounds()
@@ -635,7 +795,7 @@ export class WindowManager {
   }
 
   private scheduleBoundsSave(): void {
-    if (!this.mainWindow || this.mainWindow.isMinimized() || this.currentPanel === 'mini-chat') {
+    if (!this.mainWindow || this.mainWindow.isMinimized() || this.currentPanel === 'mini-chat' || this.currentPanel === 'image') {
       return
     }
 

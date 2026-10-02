@@ -4,12 +4,15 @@ export const WHATSAPP_PANEL_CSS = `
 html[data-bitwhat-panel="contacts"],
 html[data-bitwhat-panel="chat"],
 html[data-bitwhat-panel="mini-chat"],
+html[data-bitwhat-panel="image"],
 html[data-bitwhat-panel="contacts"] body,
 html[data-bitwhat-panel="chat"] body,
 html[data-bitwhat-panel="mini-chat"] body,
+html[data-bitwhat-panel="image"] body,
 html[data-bitwhat-panel="contacts"] #app,
 html[data-bitwhat-panel="chat"] #app,
-html[data-bitwhat-panel="mini-chat"] #app {
+html[data-bitwhat-panel="mini-chat"] #app,
+html[data-bitwhat-panel="image"] #app {
   width: 100% !important;
   height: 100% !important;
   min-width: 0 !important;
@@ -19,14 +22,15 @@ html[data-bitwhat-panel="mini-chat"] #app {
 
 html[data-bitwhat-panel="contacts"] #app,
 html[data-bitwhat-panel="chat"] #app,
-html[data-bitwhat-panel="mini-chat"] #app {
+html[data-bitwhat-panel="mini-chat"] #app,
+html[data-bitwhat-panel="image"] #app {
   position: fixed !important;
   inset: 0 !important;
 }
 
-html[data-bitwhat-panel="contacts"] #app:not([data-bitwhat-connected-projection="true"]) > :not(#bitwhat-stage),
-html[data-bitwhat-panel="chat"] #app:not([data-bitwhat-connected-projection="true"]) > :not(#bitwhat-stage),
-html[data-bitwhat-panel="mini-chat"] #app:not([data-bitwhat-connected-projection="true"]) > :not(#bitwhat-stage) {
+html[data-bitwhat-panel="contacts"] #app:not([data-bitwhat-connected-projection="true"]) > :not(#bitwhat-stage):not(:has([data-bitwhat-media-preview="true"])),
+html[data-bitwhat-panel="chat"] #app:not([data-bitwhat-connected-projection="true"]) > :not(#bitwhat-stage):not(:has([data-bitwhat-media-preview="true"])),
+html[data-bitwhat-panel="mini-chat"] #app:not([data-bitwhat-connected-projection="true"]) > :not(#bitwhat-stage):not(:has([data-bitwhat-media-preview="true"])) {
   display: none !important;
   visibility: hidden !important;
 }
@@ -256,8 +260,8 @@ html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [
 }
 
 @media (max-width: 520px) {
-  #bitwhat-stage[data-panel="chat"] [data-bitwhat-chat-composer="true"] [data-testid="compose-box"] button:not(:has([data-icon="mic-outlined"], [data-testid="mic-outlined"], [data-icon*="send" i], [data-testid*="send" i])),
-  html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-chat-composer="true"] [data-testid="compose-box"] button:not(:has([data-icon="mic-outlined"], [data-testid="mic-outlined"], [data-icon*="send" i], [data-testid*="send" i])) {
+  #bitwhat-stage[data-panel="chat"] [data-bitwhat-chat-composer="true"] [data-testid="compose-box"] button:not([data-bitwhat-media-action="true"]):not(:has([data-bitwhat-media-action="true"], [data-icon="mic-outlined"], [data-testid="mic-outlined"], [data-icon*="send" i], [data-testid*="send" i])),
+  html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-chat-composer="true"] [data-testid="compose-box"] button:not([data-bitwhat-media-action="true"]):not(:has([data-bitwhat-media-action="true"], [data-icon="mic-outlined"], [data-testid="mic-outlined"], [data-icon*="send" i], [data-testid*="send" i])) {
     display: none !important;
     visibility: hidden !important;
   }
@@ -266,6 +270,89 @@ html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [
   html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-chat-composer="true"] [data-testid="conversation-compose-box-input"] {
     min-width: 96px !important;
   }
+}
+
+#bitwhat-stage[data-panel="chat"] [data-bitwhat-chat-composer="true"] [data-bitwhat-media-action="true"],
+html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-chat-composer="true"] [data-bitwhat-media-action="true"],
+#bitwhat-stage[data-panel="chat"] [data-bitwhat-chat-composer="true"] [data-bitwhat-send-action="true"],
+html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-chat-composer="true"] [data-bitwhat-send-action="true"],
+#bitwhat-stage[data-panel="chat"] [data-bitwhat-chat-composer="true"] [data-bitwhat-microphone-action="true"],
+html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-chat-composer="true"] [data-bitwhat-microphone-action="true"] {
+  display: inline-flex !important;
+  flex: 0 0 auto !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+[data-bitwhat-media-preview="true"] {
+  z-index: 2147483647 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  box-sizing: border-box !important;
+  overflow: auto !important;
+}
+
+[data-bitwhat-media-preview="true"] [data-bitwhat-media-control="true"],
+[data-bitwhat-media-preview="true"] [data-bitwhat-media-caption="true"] {
+  visibility: visible !important;
+  opacity: 1 !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+[data-bitwhat-media-preview="true"] img[src^="blob:"],
+[data-bitwhat-media-preview="true"] img[src^="data:image/"],
+[data-bitwhat-media-preview="true"] video,
+[data-bitwhat-media-preview="true"] canvas {
+  max-width: 100% !important;
+  max-height: 68vh !important;
+  object-fit: contain !important;
+}
+
+html[data-bitwhat-panel="image"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-image-fill="true"] {
+  display: flex !important;
+  flex: 1 1 auto !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  overflow: hidden !important;
+}
+
+html[data-bitwhat-panel="image"] [data-bitwhat-media-preview="true"] {
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  overflow: auto !important;
+  z-index: 2147483647 !important;
+}
+
+html[data-bitwhat-panel="image"] [data-bitwhat-media-preview="true"] img[src^="blob:"],
+html[data-bitwhat-panel="image"] [data-bitwhat-media-preview="true"] img[src^="data:image/"],
+html[data-bitwhat-panel="image"] [data-bitwhat-media-preview="true"] video,
+html[data-bitwhat-panel="image"] [data-bitwhat-media-preview="true"] canvas {
+  max-width: min(84vw, 700px) !important;
+  max-height: 68vh !important;
+}
+
+html[data-bitwhat-panel="image"] [data-bitwhat-image-control="other"] {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+html[data-bitwhat-panel="image"] [data-bitwhat-image-control="send"],
+html[data-bitwhat-panel="image"] [data-bitwhat-image-control="cancel"] {
+  display: inline-flex !important;
+  flex: 0 0 auto !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 2147483647 !important;
 }
 
 #bitwhat-stage[data-panel="mini-chat"] [data-bitwhat-chat-panel="true"] {
@@ -277,7 +364,7 @@ html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [
   overflow: hidden !important;
 }
 
-#bitwhat-stage[data-panel="mini-chat"] [data-bitwhat-chat-panel="true"][data-bitwhat-mini-ready="true"] > :not(#bitwhat-mini-chat-layout) {
+#bitwhat-stage[data-panel="mini-chat"] [data-bitwhat-chat-panel="true"][data-bitwhat-mini-ready="true"] > :not(#bitwhat-mini-chat-layout):not(:has([data-bitwhat-media-preview="true"])) {
   display: none !important;
   visibility: hidden !important;
 }
@@ -412,6 +499,15 @@ html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [
 
   #bitwhat-mini-chat-layout > [data-bitwhat-chat-header="true"] {
     padding: 6px 4px !important;
+  }
+}
+
+@media (max-width: 520px) {
+  #bitwhat-stage[data-panel="mini-chat"] [data-bitwhat-media-preview="true"] img[src^="blob:"],
+  #bitwhat-stage[data-panel="mini-chat"] [data-bitwhat-media-preview="true"] img[src^="data:image/"],
+  #bitwhat-stage[data-panel="mini-chat"] [data-bitwhat-media-preview="true"] video,
+  #bitwhat-stage[data-panel="mini-chat"] [data-bitwhat-media-preview="true"] canvas {
+    max-height: 56px !important;
   }
 }
 `
@@ -562,6 +658,8 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
       if (element instanceof HTMLElement) {
         element.removeAttribute('data-bitwhat-contacts-fill');
         element.removeAttribute('data-bitwhat-chat-fill');
+        element.removeAttribute('data-bitwhat-media-fill');
+        element.removeAttribute('data-bitwhat-image-fill');
       }
     });
   };
@@ -587,7 +685,14 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     if (typeof state.onClick === 'function') {
       document.removeEventListener('click', state.onClick, true);
     }
+    if (typeof state.onChange === 'function') {
+      document.removeEventListener('change', state.onChange, true);
+    }
+    if (typeof state.onPaste === 'function') {
+      document.removeEventListener('paste', state.onPaste, true);
+    }
     window.clearTimeout(state.timer);
+    window.clearTimeout(state.imageCloseTimer);
 
     restoreCollection(state.pruned);
     restoreCollection(state.miniMoved);
@@ -621,8 +726,30 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     }
 
     if (state.chatComposer instanceof HTMLElement) {
+      state.chatComposer
+        .querySelectorAll('[data-bitwhat-media-action], [data-bitwhat-send-action], [data-bitwhat-microphone-action], [data-bitwhat-file-input]')
+        .forEach((element) => {
+          element.removeAttribute('data-bitwhat-media-action');
+          element.removeAttribute('data-bitwhat-send-action');
+          element.removeAttribute('data-bitwhat-microphone-action');
+          element.removeAttribute('data-bitwhat-file-input');
+        });
       state.chatComposer.removeAttribute('data-bitwhat-chat-composer');
     }
+
+    state.mediaPreviews?.forEach((element) => {
+      if (element instanceof HTMLElement) {
+        element.removeAttribute('data-bitwhat-media-preview');
+      }
+    });
+
+    state.mediaControls?.forEach((element) => {
+      if (element instanceof Element) {
+        element.removeAttribute('data-bitwhat-media-control');
+        element.removeAttribute('data-bitwhat-media-caption');
+        element.removeAttribute('data-bitwhat-image-control');
+      }
+    });
 
     if (state.appRoot instanceof HTMLElement) {
       state.appRoot.removeAttribute('data-bitwhat-connected-projection');
@@ -649,6 +776,9 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     chatComposer: undefined,
     miniLayout: undefined,
     miniMoved: [],
+    mediaPreviews: [],
+    mediaControls: [],
+    mediaPanel: undefined,
     connectedProjection: false,
     hidden: [],
     fillPath: [],
@@ -658,8 +788,13 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     vault: document.createDocumentFragment(),
     observer: undefined,
     onClick: undefined,
+    onChange: undefined,
+    onPaste: undefined,
     timer: undefined,
-    lastDiagnostic: ''
+    imageCloseTimer: undefined,
+    imagePreviewSeen: false,
+    lastDiagnostic: '',
+    reportedPanel: requestedPanel
   };
 
   window[stateKey] = state;
@@ -671,6 +806,15 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
 
     state.lastDiagnostic = message;
     console.info(diagnosticPrefix + message);
+  };
+
+  const reportPanelChange = (panel) => {
+    if (state.reportedPanel === panel) {
+      return;
+    }
+
+    state.reportedPanel = panel;
+    console.info(messagePrefix + panel);
   };
 
   const getAppRoot = () => {
@@ -711,6 +855,29 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     '[contenteditable="true"][aria-label]',
     'textarea[aria-label]',
     '[role="textbox"]'
+  ].join(',');
+
+  const mediaPreviewSelector = [
+    '[role="dialog"]',
+    '[data-animate-modal-popup="true"]',
+    '[data-testid*="media" i]',
+    '[data-testid*="image" i]',
+    '[data-testid*="preview" i]',
+    '[aria-label*="media" i]',
+    '[aria-label*="imagem" i]',
+    '[aria-label*="image" i]'
+  ].join(',');
+
+  const mediaCaptionSelector = [
+    '[contenteditable="true"]',
+    'textarea',
+    '[role="textbox"]',
+    '[data-testid*="caption" i]',
+    '[data-testid*="legenda" i]',
+    '[aria-label*="caption" i]',
+    '[aria-label*="legenda" i]',
+    '[placeholder*="caption" i]',
+    '[placeholder*="legenda" i]'
   ].join(',');
 
   const findChatTextbox = (scope = document) =>
@@ -940,55 +1107,77 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     detachNode(node, state.pruned);
   };
 
-  const isolateDescendant = (container, keep, fillAttribute) => {
+  const isolateDescendant = (container, keep, fillAttribute, extraKeeps = []) => {
     if (!isElement(container) || !isElement(keep) || container === keep || !container.contains(keep)) {
       return;
     }
 
-    Array.from(container.children).forEach((child) => {
-      if (!(child instanceof HTMLElement)) {
-        return;
-      }
+    const targets = [
+      keep,
+      ...extraKeeps.filter((element) => isElement(element) && container.contains(element))
+    ];
+    const isolate = (current, currentTargets) => {
+      Array.from(current.children).forEach((child) => {
+        if (!(child instanceof HTMLElement)) {
+          return;
+        }
 
-      if (child === keep) {
-        return;
-      }
+        const nestedTargets = currentTargets.filter((target) => child === target || child.contains(target));
+        if (nestedTargets.length === 0) {
+          detachNode(child, state.pruned);
+          return;
+        }
 
-      if (child.contains(keep)) {
-        child.setAttribute(fillAttribute, 'true');
-        state.fillPath.push(child);
-        isolateDescendant(child, keep, fillAttribute);
-        return;
-      }
+        if (child === keep || extraKeeps.includes(child)) {
+          return;
+        }
 
-      detachNode(child, state.pruned);
-    });
+        if (child.contains(keep)) {
+          child.setAttribute(fillAttribute, 'true');
+          state.fillPath.push(child);
+        }
+        isolate(child, nestedTargets);
+      });
+    };
+
+    isolate(container, targets);
   };
 
-  const isolateDescendantConnected = (container, keep, fillAttribute) => {
+  const isolateDescendantConnected = (container, keep, fillAttribute, extraKeeps = []) => {
     if (!isElement(container) || !isElement(keep) || container === keep || !container.contains(keep)) {
       return;
     }
 
-    Array.from(container.children).forEach((child) => {
-      if (!(child instanceof HTMLElement)) {
-        return;
-      }
+    const targets = [
+      keep,
+      ...extraKeeps.filter((element) => isElement(element) && container.contains(element))
+    ];
+    const isolate = (current, currentTargets) => {
+      Array.from(current.children).forEach((child) => {
+        if (!(child instanceof HTMLElement)) {
+          return;
+        }
 
-      if (child === keep) {
-        return;
-      }
+        const nestedTargets = currentTargets.filter((target) => child === target || child.contains(target));
+        if (nestedTargets.length === 0) {
+          child.setAttribute('data-bitwhat-panel-hidden', 'true');
+          state.hidden.push(child);
+          return;
+        }
 
-      if (child.contains(keep)) {
-        child.setAttribute(fillAttribute, 'true');
-        state.fillPath.push(child);
-        isolateDescendantConnected(child, keep, fillAttribute);
-        return;
-      }
+        if (child === keep || extraKeeps.includes(child)) {
+          return;
+        }
 
-      child.setAttribute('data-bitwhat-panel-hidden', 'true');
-      state.hidden.push(child);
-    });
+        if (child.contains(keep)) {
+          child.setAttribute(fillAttribute, 'true');
+          state.fillPath.push(child);
+        }
+        isolate(child, nestedTargets);
+      });
+    };
+
+    isolate(container, targets);
   };
 
   const markContactPath = (shell, list) => {
@@ -1070,6 +1259,7 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     if (composer instanceof HTMLElement) {
       composer.setAttribute('data-bitwhat-chat-composer', 'true');
       state.chatComposer = composer;
+      markComposerActions(composer);
     }
 
     return composer;
@@ -1087,8 +1277,230 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
 
     return Boolean(
       element.matches('footer, form, [role="form"], [contenteditable="true"], textarea, [role="textbox"]') &&
-        (element.matches(chatTextboxSelector) || element.querySelector(chatTextboxSelector))
+      (element.matches(chatTextboxSelector) || element.querySelector(chatTextboxSelector))
     );
+  };
+
+  const describeAction = (element) => {
+    if (!isElement(element)) {
+      return '';
+    }
+
+    const values = [
+      element.getAttribute('aria-label'),
+      element.getAttribute('title'),
+      element.getAttribute('data-testid'),
+      element.getAttribute('data-icon'),
+      element.textContent
+    ];
+
+    element.querySelectorAll('[aria-label], [title], [data-testid], [data-icon]').forEach((child) => {
+      values.push(
+        child.getAttribute('aria-label'),
+        child.getAttribute('title'),
+        child.getAttribute('data-testid'),
+        child.getAttribute('data-icon')
+      );
+    });
+
+    return values.filter(Boolean).join(' ');
+  };
+
+  const markComposerActions = (composer) => {
+    if (!isElement(composer)) {
+      return;
+    }
+
+    composer.querySelectorAll('input[type="file"]').forEach((input) => {
+      input.setAttribute('data-bitwhat-file-input', 'true');
+    });
+
+    composer.querySelectorAll('button, [role="button"], [data-icon], [data-testid]').forEach((element) => {
+      const action = element.matches('button, [role="button"]')
+        ? element
+        : element.closest('button, [role="button"]');
+      if (!isElement(action) || !composer.contains(action)) {
+        return;
+      }
+
+      const label = describeAction(action);
+      if (/(attach|attachment|anex|clipe|clip|media|m[ií]dia|image|imagem|photo|foto|upload)/i.test(label)) {
+        action.setAttribute('data-bitwhat-media-action', 'true');
+      }
+      if (action.querySelector('[data-icon="plus"], [data-icon*="attach" i], [data-testid*="attach" i], [data-testid*="media" i]')) {
+        action.setAttribute('data-bitwhat-media-action', 'true');
+      }
+      if (/(send|enviar|submit)/i.test(label)) {
+        action.setAttribute('data-bitwhat-send-action', 'true');
+      }
+      if (/(microphone|mic-outlined|microfone|voice message|mensagem de voz)/i.test(label)) {
+        action.setAttribute('data-bitwhat-microphone-action', 'true');
+      }
+    });
+  };
+
+  const findMediaPreviewRoots = () => {
+    const candidates = Array.from(document.querySelectorAll(mediaPreviewSelector)).filter(isElement);
+    const qualifiesAsMediaPreview = (element) => {
+      if (!isElement(element) || element.hidden || element.getAttribute('aria-hidden') === 'true') {
+        return false;
+      }
+
+      const hasImageAsset = Boolean(
+        element.querySelector(
+          'img[src^="blob:"], img[src^="data:image/"], video, canvas, [data-testid*="media-preview" i], [data-testid*="image-preview" i]'
+        )
+      );
+      const selectedImageFile = Array.from(element.querySelectorAll('input[type="file"]')).some((input) =>
+        Array.from(input.files || []).some((file) => file.type.startsWith('image/'))
+      );
+      const hasCaption = Boolean(element.querySelector(mediaCaptionSelector));
+      const hasSendAction = Array.from(element.querySelectorAll('button, [role="button"], [data-icon], [data-testid]'))
+        .some((action) => /(send|enviar|submit)/i.test(describeAction(action)));
+
+      return (hasImageAsset || selectedImageFile) && hasSendAction && (hasCaption || selectedImageFile);
+    };
+
+    const qualifying = candidates.filter(qualifiesAsMediaPreview);
+    return qualifying.filter((candidate) => {
+      let ancestor = candidate.parentElement;
+      while (ancestor && ancestor !== document.body) {
+        if (qualifying.includes(ancestor)) {
+          return false;
+        }
+        ancestor = ancestor.parentElement;
+      }
+      return true;
+    });
+  };
+
+  const findImagePanelRoot = () => {
+    const confirmed = findMediaPreviewRoots();
+    if (confirmed.length > 0) {
+      return confirmed[0];
+    }
+
+    const candidates = Array.from(
+      document.querySelectorAll(
+        '[role="dialog"], [data-animate-modal-popup="true"], [data-testid*="media" i], [data-testid*="image" i], [data-testid*="preview" i], [aria-label*="imagem" i], [aria-label*="image" i]'
+      )
+    ).filter((element) => isElement(element) && !element.hidden && element.getAttribute('aria-hidden') !== 'true');
+
+    const mediaCandidates = candidates.filter((element) =>
+      /(media|image|imagem|preview|prévia|previa)/i.test(
+        [element.getAttribute('data-testid'), element.getAttribute('aria-label')].filter(Boolean).join(' ')
+      )
+    );
+
+    return mediaCandidates.at(-1) || candidates.at(-1) || null;
+  };
+
+  const findImageActions = (preview) => {
+    if (!isElement(preview)) {
+      return null;
+    }
+
+    const dialogSelector = [
+      '[role="dialog"]',
+      '[aria-modal="true"]',
+      '[data-animate-modal-popup="true"]',
+      '[data-testid*="modal" i]',
+      '[data-testid*="media" i]',
+      '[data-testid*="image" i]',
+      '[data-testid*="preview" i]'
+    ].join(',');
+    const isSend = (element) => /(send|enviar|submit)/i.test(describeAction(element));
+    const isCancel = (element) => /(cancel|cancelar|close|fechar|discard|dismiss|back|voltar)/i.test(describeAction(element));
+    let nearestActions = null;
+    let current = preview;
+    let depth = 0;
+
+    while (current instanceof HTMLElement && current !== document.body && depth < 12) {
+      const actions = Array.from(current.querySelectorAll('button, [role="button"]')).filter(isElement);
+      const send = actions.find(isSend);
+      const cancel = actions.find(isCancel);
+
+      if (send && cancel) {
+        const found = { scope: current, send, cancel };
+        if (current.matches(dialogSelector)) {
+          return found;
+        }
+        nearestActions ||= found;
+      }
+
+      if (current.id === 'app') {
+        break;
+      }
+
+      current = current.parentElement;
+      depth += 1;
+    }
+
+    return nearestActions;
+  };
+
+  const markMediaPreview = (rootOverride) => {
+    state.mediaControls?.forEach((control) => {
+      if (!(control instanceof Element)) {
+        return;
+      }
+
+      control.removeAttribute('data-bitwhat-media-control');
+      control.removeAttribute('data-bitwhat-media-caption');
+      control.removeAttribute('data-bitwhat-image-control');
+    });
+
+    const roots = isElement(rootOverride) ? [rootOverride] : findMediaPreviewRoots();
+    state.mediaPreviews.forEach((oldRoot) => {
+      if (!(oldRoot instanceof HTMLElement) || roots.includes(oldRoot)) {
+        return;
+      }
+
+      oldRoot.removeAttribute('data-bitwhat-media-preview');
+      oldRoot.querySelectorAll('[data-bitwhat-media-control="true"], [data-bitwhat-media-caption="true"]').forEach((control) => {
+        control.removeAttribute('data-bitwhat-media-control');
+        control.removeAttribute('data-bitwhat-media-caption');
+      });
+    });
+
+    const controls = [];
+    roots.forEach((preview) => {
+      preview.setAttribute('data-bitwhat-media-preview', 'true');
+      preview.querySelectorAll(mediaCaptionSelector).forEach((caption) => {
+        caption.setAttribute('data-bitwhat-media-caption', 'true');
+        controls.push(caption);
+      });
+      preview.querySelectorAll('button, [role="button"], [data-icon], [data-testid]').forEach((control) => {
+        control.setAttribute('data-bitwhat-media-control', 'true');
+        const action = control.matches('button, [role="button"]')
+          ? control
+          : control.closest('button, [role="button"]');
+        if (isElement(action)) {
+          action.setAttribute('data-bitwhat-image-control', 'other');
+        }
+        controls.push(control);
+      });
+
+      const imageActions = findImageActions(preview);
+      if (!imageActions) {
+        return;
+      }
+
+      imageActions.scope.querySelectorAll('button, [role="button"]').forEach((control) => {
+        control.setAttribute('data-bitwhat-image-control', 'other');
+        controls.push(control);
+      });
+      imageActions.send.setAttribute('data-bitwhat-image-control', 'send');
+      imageActions.cancel.setAttribute('data-bitwhat-image-control', 'cancel');
+      controls.push(imageActions.send, imageActions.cancel);
+    });
+
+    state.mediaPreviews = roots;
+    state.mediaControls = controls;
+    if (roots.length > 0) {
+      state.imagePreviewSeen = true;
+    }
+    return roots;
   };
 
   const findMessageScroll = (chatPanel, header, composer) => {
@@ -1228,9 +1640,17 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
       parts.some((other, otherIndex) => index !== otherIndex && part.contains(other))
     );
 
-  const pruneMiniRemainder = (chatPanel, layout) => {
+  const pruneMiniRemainder = (chatPanel, layout, mediaPreviews = []) => {
     Array.from(chatPanel.children).forEach((child) => {
       if (child === layout) {
+        return;
+      }
+
+      const keptPreviews = mediaPreviews.filter((preview) => child === preview || child.contains(preview));
+      if (keptPreviews.length > 0) {
+        if (child !== keptPreviews[0]) {
+          isolateDescendant(child, keptPreviews[0], 'data-bitwhat-media-fill', keptPreviews.slice(1));
+        }
         return;
       }
 
@@ -1260,6 +1680,8 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     if (requestedPanel !== 'mini-chat' || !isElement(chatPanel)) {
       return false;
     }
+
+    const mediaPreviews = markMediaPreview().filter((preview) => chatPanel.contains(preview));
 
     if (state.miniLayout instanceof HTMLElement && chatPanel.contains(state.miniLayout)) {
       chatPanel.setAttribute('data-bitwhat-mini-ready', 'true');
@@ -1320,7 +1742,7 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
       return false;
     }
 
-    pruneMiniRemainder(chatPanel, layout);
+    pruneMiniRemainder(chatPanel, layout, mediaPreviews);
     chatPanel.setAttribute('data-bitwhat-mini-ready', 'true');
     scrollMiniMessagesToBottom();
     publishDiagnostic(
@@ -1377,8 +1799,18 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
       return;
     }
 
+    const mediaPreviews = state.mediaPreviews.filter((preview) => isElement(preview) && appRoot.contains(preview));
+
     Array.from(appRoot.childNodes).forEach((child) => {
       if (child === state.stage || child.nodeType === Node.COMMENT_NODE) {
+        return;
+      }
+
+      const keptPreviews = mediaPreviews.filter((preview) => child === preview || child.contains(preview));
+      if (keptPreviews.length > 0) {
+        if (child !== keptPreviews[0]) {
+          isolateDescendant(child, keptPreviews[0], 'data-bitwhat-media-fill', keptPreviews.slice(1));
+        }
         return;
       }
 
@@ -1428,6 +1860,8 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
       return;
     }
 
+    const mediaPreviews = markMediaPreview();
+
     markChatPath(shell, main);
     // Detect the composer before pruning so a composer rendered beside #main
     // is preserved. Do not wait for it, though: on WhatsApp's compact layout
@@ -1436,7 +1870,7 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     if (requestedPanel === 'chat') {
       markChatComposer(main, shell);
     }
-    isolateDescendant(shell, main, 'data-bitwhat-chat-fill');
+    isolateDescendant(shell, main, 'data-bitwhat-chat-fill', mediaPreviews);
     markMiniChatParts(main);
     if (requestedPanel === 'chat') {
       markChatComposer(main, shell);
@@ -1490,6 +1924,7 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
 
     clearHiddenAttributes(state.hidden);
     state.hidden = [];
+    const mediaPreviews = markMediaPreview();
 
     if (requestedPanel === 'contacts') {
       const list = state.contactList;
@@ -1508,8 +1943,8 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     }
 
     markChatPath(pane, main);
-    isolateDescendantConnected(appRoot, pane, 'data-bitwhat-chat-fill');
-    isolateDescendantConnected(pane, main, 'data-bitwhat-chat-fill');
+    isolateDescendantConnected(appRoot, pane, 'data-bitwhat-chat-fill', mediaPreviews);
+    isolateDescendantConnected(pane, main, 'data-bitwhat-chat-fill', mediaPreviews);
     markChatComposer(main, pane);
     return true;
   };
@@ -1543,6 +1978,83 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
         '; chat=' +
         describeElement(chatPanel)
     );
+    return true;
+  };
+
+  const refreshImageProjection = () => {
+    const mediaPreview = findImagePanelRoot();
+    markMediaPreview(mediaPreview);
+    const imageActions = findImageActions(mediaPreview);
+    const preservedActions = imageActions ? [imageActions.send, imageActions.cancel] : [];
+    clearHiddenAttributes(state.hidden);
+    state.hidden = [];
+
+    if (!(mediaPreview instanceof HTMLElement)) {
+      if (state.appRoot instanceof HTMLElement) {
+        state.appRoot.removeAttribute('data-bitwhat-connected-projection');
+      }
+
+      if (state.imagePreviewSeen) {
+        window.clearTimeout(state.imageCloseTimer);
+        state.imageCloseTimer = window.setTimeout(() => {
+          const reopenedPreview = findImagePanelRoot();
+          if (reopenedPreview) {
+            state.imagePreviewSeen = true;
+            refreshImageProjection();
+            return;
+          }
+
+          reportPanelChange('chat');
+        }, 350);
+      }
+      return true;
+    }
+
+    window.clearTimeout(state.imageCloseTimer);
+    state.imagePreviewSeen = true;
+    const appRoot = state.appRoot || getAppRoot();
+    state.appRoot = appRoot;
+    state.mediaPanel = mediaPreview;
+    appRoot.setAttribute('data-bitwhat-connected-projection', 'true');
+    root.removeAttribute('data-bitwhat-panel-pending');
+    root.setAttribute('data-bitwhat-panel', 'image');
+
+    if (appRoot.contains(mediaPreview)) {
+      isolateDescendantConnected(appRoot, mediaPreview, 'data-bitwhat-image-fill', preservedActions);
+    } else {
+      appRoot.setAttribute('data-bitwhat-panel-hidden', 'true');
+      state.hidden.push(appRoot);
+    }
+
+    return true;
+  };
+
+  const mountImageProjection = (mediaPreview) => {
+    state.appRoot = getAppRoot();
+    state.connectedProjection = true;
+    root.removeAttribute('data-bitwhat-panel-pending');
+    root.setAttribute('data-bitwhat-panel', 'image');
+
+    if (!isElement(mediaPreview) || !mediaPreview.parentNode) {
+      state.appRoot.removeAttribute('data-bitwhat-connected-projection');
+      publishDiagnostic('modo imagem aguardando editor nativo');
+      return true;
+    }
+
+    state.mediaPanel = mediaPreview;
+    state.imagePreviewSeen = true;
+    state.appRoot.setAttribute('data-bitwhat-connected-projection', 'true');
+    const imageActions = findImageActions(mediaPreview);
+    const preservedActions = imageActions ? [imageActions.send, imageActions.cancel] : [];
+
+    if (state.appRoot.contains(mediaPreview)) {
+      isolateDescendantConnected(state.appRoot, mediaPreview, 'data-bitwhat-image-fill', preservedActions);
+    } else {
+      state.appRoot.setAttribute('data-bitwhat-panel-hidden', 'true');
+      state.hidden.push(state.appRoot);
+    }
+
+    publishDiagnostic('modo imagem aplicado; preview=' + describeElement(mediaPreview));
     return true;
   };
 
@@ -1601,6 +2113,18 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
   };
 
   const applyPanel = () => {
+    if (requestedPanel === 'image') {
+      if (state.connectedProjection) {
+        return refreshImageProjection();
+      }
+      return mountImageProjection(markMediaPreview(findImagePanelRoot())[0]);
+    }
+
+    if (requestedPanel !== 'contacts' && markMediaPreview().length > 0) {
+      reportPanelChange('image');
+      return true;
+    }
+
     if (state.connectedProjection) {
       return refreshConnectedProjection();
     }
@@ -1641,12 +2165,55 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     }
 
     window.setTimeout(() => {
-      console.info(messagePrefix + 'chat');
+      reportPanelChange('chat');
     }, 160);
   };
 
+  const onChange = (event) => {
+    const input = event.target instanceof HTMLInputElement && event.target.type === 'file' ? event.target : null;
+    if (!input) {
+      return;
+    }
+
+    const hasImage = Array.from(input.files || []).some(
+      (file) =>
+        file.type.startsWith('image/') ||
+        /\.(png|jpe?g|gif|webp|bmp|heic|heif|avif)$/i.test(file.name)
+    );
+    if (!hasImage) {
+      return;
+    }
+
+    if (requestedPanel !== 'image') {
+      state.imagePreviewSeen = false;
+    }
+    reportPanelChange('image');
+  };
+
+  const onPaste = (event) => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target || (!target.closest(chatTextboxSelector) && !target.closest('[data-bitwhat-chat-composer="true"]'))) {
+      return;
+    }
+
+    const clipboardItems = Array.from(event.clipboardData?.items || []);
+    const hasImage = clipboardItems.some((item) => item.type.toLowerCase().startsWith('image/'));
+    if (!hasImage) {
+      return;
+    }
+
+    if (requestedPanel !== 'image') {
+      state.imagePreviewSeen = false;
+    }
+    reportPanelChange('image');
+  };
+
   state.onClick = onClick;
+  state.onChange = onChange;
+  state.onPaste = onPaste;
   document.addEventListener('click', onClick, true);
+  document.addEventListener('change', onChange, true);
+  document.addEventListener('paste', onPaste, true);
 
   const observer = new MutationObserver(() => {
     window.clearTimeout(state.timer);
