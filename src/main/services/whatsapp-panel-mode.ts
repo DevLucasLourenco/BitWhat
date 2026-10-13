@@ -585,6 +585,23 @@ html[data-bitwhat-theme="light"] [role="textbox"] {
   background: var(--compose-input-background) !important;
   color: var(--primary) !important;
 }
+
+/* Change only the background of messages sent from this account. */
+html[data-bitwhat-panel="chat"],
+html[data-bitwhat-panel="mini-chat"] {
+  --outgoing-background: #d4d4d4 !important;
+  --outgoing-background-rgb: 212, 212, 212 !important;
+  --outgoing-background-deeper: #c8c8c8 !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-bitwhat-panel="chat"]:not([data-bitwhat-theme="light"]),
+  html[data-bitwhat-panel="mini-chat"]:not([data-bitwhat-theme="light"]) {
+    --outgoing-background: #505050 !important;
+    --outgoing-background-rgb: 80, 80, 80 !important;
+    --outgoing-background-deeper: #5b5b5b !important;
+  }
+}
 `
 
 export function createApplyWhatsAppThemeScript(theme: ThemePreference): string {
