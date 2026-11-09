@@ -15,6 +15,7 @@ const CACHEABLE_CACHE_CONTROL = 'public, max-age=86400, immutable'
 
 export class SessionManager {
   private readonly whatsappSession: Session
+  private notificationsMuted = false
 
   constructor() {
     this.whatsappSession = session.fromPartition(WHATSAPP_PARTITION, { cache: true })
@@ -22,6 +23,16 @@ export class SessionManager {
 
   getSession(): Session {
     return this.whatsappSession
+  }
+
+  /** Bloqueia (ou libera) a exibição de notificações do WhatsApp Web. */
+  setNotificationsMuted(muted: boolean): void {
+    if (this.notificationsMuted === muted) {
+      return
+    }
+
+    this.notificationsMuted = muted
+    logger.info(`Notificações do WhatsApp ${muted ? 'silenciadas' : 'liberadas'}`)
   }
 
   configure(): void {
@@ -105,6 +116,10 @@ export class SessionManager {
   private isAllowedPermission(webContents: WebContents | null, permission: string, requestingUrl: string): boolean {
     const currentUrl = webContents?.getURL() ?? WHATSAPP_ORIGIN
     const fromWhatsApp = isWhatsAppOrigin(requestingUrl) || isWhatsAppOrigin(currentUrl)
+
+    if (permission === 'notifications' && this.notificationsMuted) {
+      return false
+    }
 
     return fromWhatsApp && ALLOWED_PERMISSIONS.has(permission)
   }

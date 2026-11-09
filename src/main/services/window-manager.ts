@@ -29,6 +29,12 @@ import { SettingsStore } from './settings-store'
 import { TrayManager } from './tray-manager'
 import { logger } from './logger'
 import {
+  applyNativeTheme,
+  getWhatsAppBackgroundColor,
+  getWindowBackgroundColor,
+  onNativeThemeUpdated
+} from './theme-manager'
+import {
   createApplyWhatsAppThemeScript,
   createEnableWhatsAppPanelScript,
   WHATSAPP_PANEL_CSS,
@@ -37,8 +43,10 @@ import {
 
 const MIN_WIDTH = 360
 const MIN_HEIGHT = 560
-const DEFAULT_PANEL_WIDTH = 420
-const DEFAULT_PANEL_HEIGHT = 720
+// Tamanho com que a janela sempre abre. Pode ser redimensionada durante o uso,
+// mas a próxima abertura volta a este tamanho (a posição salva é mantida).
+const DEFAULT_PANEL_WIDTH = 380
+const DEFAULT_PANEL_HEIGHT = 618
 const IMAGE_WINDOW_WIDTH = 760
 const IMAGE_WINDOW_HEIGHT = 800
 const MINI_MIN_WIDTH = 420
@@ -120,6 +128,7 @@ export class WindowManager {
   private loadTimeoutTimer?: NodeJS.Timeout | undefined
   private resizeRafId?: number | undefined
   private gcInterval?: NodeJS.Timeout | undefined
+  private disposeThemeListener?: (() => void) | undefined
 
   constructor(settingsStore: SettingsStore, sessionManager: SessionManager) {
     this.settingsStore = settingsStore
@@ -131,8 +140,9 @@ export class WindowManager {
     Menu.setApplicationMenu(null)
 
     const preferences = this.settingsStore.updatePreferences({ whatsappPanel: 'contacts' })
+    const initialBounds = this.getInitialBounds()
     this.mainWindow = new BrowserWindow({
-      ...this.getInitialBounds(),
+      ...initialBounds,
       minWidth: MIN_WIDTH,
       minHeight: MIN_HEIGHT,
       title: APP_NAME,
@@ -140,7 +150,7 @@ export class WindowManager {
       show: false,
       resizable: true,
       autoHideMenuBar: true,
-      backgroundColor: preferences.theme === 'dark' ? '#111827' : '#f7faf9',
+      backgroundColor: getWindowBackgroundColor(),
       webPreferences: {
         preload: path.join(__dirname, '../preload/index.js'),
         contextIsolation: true,
@@ -150,9 +160,15 @@ export class WindowManager {
       }
     })
 
+    // Em monitores com escalas diferentes (ex.: principal 100% e secundário 150%),
+    // o Electron converte os bounds do construtor com a escala errada e a janela
+    // abre ampliada. Reaplicar com a janela já no monitor de destino corrige.
+    this.mainWindow.setBounds(initialBounds)
+
     this.mainWindow.setAlwaysOnTop(preferences.alwaysOnTop, 'floating')
     this.bindWindowEvents()
     this.createWhatsappView()
+    this.disposeThemeListener = onNativeThemeUpdated(() => this.syncBackgroundColors())
     this.setBackgroundThrottling(false)
     await this.loadRenderer()
     this.loadWhatsApp()
@@ -243,7 +259,10 @@ export class WindowManager {
     }
 
     this.mainWindow.setAlwaysOnTop(preferences.alwaysOnTop, 'floating')
-    this.mainWindow.setBackgroundColor(preferences.theme === 'dark' ? '#111827' : '#f7faf9')
+    this.sessionManager.setNotificationsMuted(preferences.muteNotifications)
+    this.trayManager?.refreshMenu()
+    applyNativeTheme(preferences.theme)
+    this.syncBackgroundColors()
 
     this.applyPanelWindowMode(panelMode)
 
@@ -303,6 +322,7 @@ export class WindowManager {
 
     this.whatsappView = new BrowserView({
       webPreferences: {
+        preload: path.join(__dirname, '../preload/whatsapp.js'),
         partition: WHATSAPP_PARTITION,
         contextIsolation: true,
         nodeIntegration: false,
@@ -314,7 +334,7 @@ export class WindowManager {
 
     this.mainWindow.setBrowserView(this.whatsappView)
     this.whatsappView.webContents.setUserAgent(WHATSAPP_BROWSER_USER_AGENT)
-    this.whatsappView.setBackgroundColor('#ffffff')
+    this.whatsappView.setBackgroundColor(getWhatsAppBackgroundColor())
     this.updateWhatsAppBounds()
     attachNavigationGuard(this.whatsappView.webContents)
     this.bindWhatsAppEvents()
@@ -346,6 +366,8 @@ export class WindowManager {
         this.resizeRafId = undefined
       }
       this.stopPeriodicGc()
+      this.disposeThemeListener?.()
+      this.disposeThemeListener = undefined
       this.mainWindow = undefined
       this.whatsappView = undefined
     })
@@ -626,6 +648,16 @@ export class WindowManager {
     }
   }
 
+  private syncBackgroundColors(): void {
+    if (this.mainWindow && !this.mainWindow.isDestroyed()) {
+      this.mainWindow.setBackgroundColor(getWindowBackgroundColor())
+    }
+
+    if (this.whatsappView && !this.whatsappView.webContents.isDestroyed()) {
+      this.whatsappView.setBackgroundColor(getWhatsAppBackgroundColor())
+    }
+  }
+
   private async exitWhatsAppConversation(): Promise<void> {
     const webContents = this.whatsappView?.webContents
     if (!webContents || webContents.isDestroyed()) {
@@ -662,7 +694,11 @@ export class WindowManager {
   private getInitialBounds(): Rectangle {
     const savedBounds = this.settingsStore.getWindowBounds()
     if (savedBounds) {
-      return this.fitBoundsToDisplay(savedBounds)
+      return this.fitBoundsToDisplay({
+        ...savedBounds,
+        width: DEFAULT_PANEL_WIDTH,
+        height: DEFAULT_PANEL_HEIGHT
+      })
     }
 
     const display = screen.getPrimaryDisplay()

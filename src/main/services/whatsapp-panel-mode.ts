@@ -710,6 +710,7 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     }
     window.clearTimeout(state.timer);
     window.clearTimeout(state.imageCloseTimer);
+    state.stopBottomPin?.();
 
     restoreCollection(state.pruned);
     restoreCollection(state.miniMoved);
@@ -778,6 +779,7 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     restoreCollection(state.detached);
   };
 
+  const previousPanel = window[stateKey]?.requestedPanel;
   restoreState(window[stateKey]);
   root.removeAttribute('data-bitwhat-panel');
   root.removeAttribute('data-bitwhat-panel-pending');
@@ -811,7 +813,9 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     imageCloseTimer: undefined,
     imagePreviewSeen: false,
     lastDiagnostic: '',
-    reportedPanel: requestedPanel
+    reportedPanel: requestedPanel,
+    requestedPanel,
+    stopBottomPin: undefined
   };
 
   window[stateKey] = state;
@@ -2224,6 +2228,100 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     }
     reportPanelChange('image');
   };
+
+  // Ao entrar numa conversa, mantém a rolagem no fim enquanto o WhatsApp e a
+  // projeção do BitWhat ainda reorganizam o layout (que empurrava a conversa
+  // um pouco para cima). Para ao estabilizar, após o limite de tempo ou assim
+  // que o usuário rolar por conta própria.
+  const findChatScroller = () => {
+    const scope =
+      state.chatPanel instanceof HTMLElement && state.chatPanel.isConnected
+        ? state.chatPanel
+        : document.querySelector('#main');
+    if (!(scope instanceof HTMLElement)) {
+      return null;
+    }
+
+    let best = null;
+    scope.querySelectorAll('div').forEach((element) => {
+      if (element.scrollHeight <= element.clientHeight + 8) {
+        return;
+      }
+      if (!/auto|scroll/i.test(window.getComputedStyle(element).overflowY)) {
+        return;
+      }
+      if (!element.querySelector('[data-id], [role="row"]')) {
+        return;
+      }
+      if (!best || element.clientHeight > best.clientHeight) {
+        best = element;
+      }
+    });
+    return best;
+  };
+
+  const startChatBottomPin = () => {
+    const PIN_INTERVAL_MS = 100;
+    const PIN_MAX_MS = 4000;
+    const STABLE_TICKS_TO_STOP = 6;
+    const startedAt = Date.now();
+    const userScrollKeys = new Set(['PageUp', 'PageDown', 'ArrowUp', 'ArrowDown', 'Home', 'End']);
+    let scroller = null;
+    let lastSignature = '';
+    let stableTicks = 0;
+    let timer;
+
+    const onUserScroll = (event) => {
+      if (event.type === 'keydown' && !userScrollKeys.has(event.key)) {
+        return;
+      }
+      if (scroller instanceof HTMLElement && event.target instanceof Node && !scroller.contains(event.target) && event.type !== 'keydown') {
+        return;
+      }
+      stop();
+    };
+
+    const userEvents = ['wheel', 'touchstart', 'mousedown', 'keydown'];
+    const stop = () => {
+      window.clearTimeout(timer);
+      userEvents.forEach((type) => document.removeEventListener(type, onUserScroll, true));
+      if (state.stopBottomPin === stop) {
+        state.stopBottomPin = undefined;
+      }
+    };
+
+    const tick = () => {
+      if (Date.now() - startedAt > PIN_MAX_MS) {
+        stop();
+        return;
+      }
+
+      if (!(scroller instanceof HTMLElement) || !scroller.isConnected) {
+        scroller = findChatScroller();
+      }
+
+      if (scroller instanceof HTMLElement) {
+        scroller.scrollTop = scroller.scrollHeight;
+        const signature = scroller.scrollHeight + 'x' + scroller.clientHeight;
+        stableTicks = signature === lastSignature ? stableTicks + 1 : 0;
+        lastSignature = signature;
+        if (stableTicks >= STABLE_TICKS_TO_STOP) {
+          stop();
+          return;
+        }
+      }
+
+      timer = window.setTimeout(tick, PIN_INTERVAL_MS);
+    };
+
+    userEvents.forEach((type) => document.addEventListener(type, onUserScroll, true));
+    state.stopBottomPin = stop;
+    tick();
+  };
+
+  if ((requestedPanel === 'chat' || requestedPanel === 'mini-chat') && previousPanel !== requestedPanel) {
+    startChatBottomPin();
+  }
 
   state.onClick = onClick;
   state.onChange = onChange;

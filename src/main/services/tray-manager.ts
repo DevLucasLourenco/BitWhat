@@ -4,6 +4,7 @@ import { APP_NAME, WhatsAppState } from '../../shared/types'
 import { getAssetPath, getTrayImage } from './assets'
 import { logger } from './logger'
 import { SessionManager } from './session-manager'
+import { SettingsStore } from './settings-store'
 import { WindowManager } from './window-manager'
 
 const statusToImageFile: Record<WhatsAppState, string> = {
@@ -32,7 +33,8 @@ export class TrayManager {
 
   constructor(
     private readonly windowManager: WindowManager,
-    private readonly sessionManager: SessionManager
+    private readonly sessionManager: SessionManager,
+    private readonly settingsStore: SettingsStore
   ) {}
 
   create(): void {
@@ -62,6 +64,15 @@ export class TrayManager {
         label: 'Limpar sessão/logout',
         click: () => {
           void this.clearSession()
+        }
+      },
+      { type: 'separator' },
+      {
+        label: 'Silenciar notificações',
+        type: 'checkbox',
+        checked: this.settingsStore.getPreferences().muteNotifications,
+        click: (menuItem) => {
+          void this.setNotificationsMuted(menuItem.checked)
         }
       },
       { type: 'separator' },
@@ -101,6 +112,15 @@ export class TrayManager {
 
   private getImage(state: WhatsAppState): NativeImage {
     return this.images[state] ?? this.images.ready ?? getTrayImage()
+  }
+
+  private async setNotificationsMuted(muted: boolean): Promise<void> {
+    try {
+      const preferences = this.settingsStore.updatePreferences({ muteNotifications: muted })
+      await this.windowManager.applyPreferences(preferences)
+    } catch (error) {
+      logger.error('Falha ao alterar notificações pelo menu da bandeja', error)
+    }
   }
 
   private async clearSession(): Promise<void> {
