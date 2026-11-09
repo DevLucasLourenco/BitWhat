@@ -18,7 +18,8 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: {
-          index: resolve(__dirname, 'src/preload/preload.ts')
+          index: resolve(__dirname, 'src/preload/preload.ts'),
+          whatsapp: resolve(__dirname, 'src/preload/whatsapp-preload.ts')
         }
       }
     }

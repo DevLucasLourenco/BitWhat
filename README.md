@@ -17,7 +17,8 @@ mantém a autenticação em uma sessão local exclusiva do BitWhat.
 
 ## Principais recursos
 
-- Janela compacta dedicada ao WhatsApp Web.
+- Janela compacta dedicada ao WhatsApp Web. Sempre abre em 380×618 na última
+  posição usada; pode ser redimensionada durante o uso.
 - Ícone na bandeja do Windows para abrir, recarregar, limpar a sessão ou sair.
 - Sessão persistente: o login permanece salvo entre as execuções, até que o
   usuário escolha limpar a sessão.
@@ -107,17 +108,27 @@ O WhatsApp Web não usa o Chrome instalado no Windows quando roda dentro deste a
 - `Abrir WhatsApp`
 - `Recarregar`
 - `Limpar sessão/logout`
+- `Silenciar notificações` (marcável; fica salvo entre execuções e vale na hora,
+  sem recarregar: a sessão do WhatsApp perde a permissão de notificação)
 - `Sair`
 
 ## Recursos e configurações
 
 - Navegação automática: clicar em um contato abre o chat; no chat, o botão de sidebar volta aos contatos.
+- Ao abrir uma conversa, ela começa no fim (última mensagem). A rolagem é
+  mantida no fim enquanto o layout se ajusta (até 4 s) e para assim que o
+  usuário rola por conta própria.
 - Formato do chat: `Padrão` ou `Mini`.
 - O formato `Mini` redimensiona a janela para a visualização reduzida.
 - Sempre no topo.
 - Iniciar minimizada na bandeja.
 - Iniciar com Windows.
-- Tema claro, escuro ou sistema para a tela interna.
+- Tema claro, escuro ou sistema para a tela interna e para o WhatsApp Web.
+  O padrão é `Escuro`: ao iniciar, o app aplica `nativeTheme.themeSource`, e
+  o preload do WhatsApp (`src/preload/whatsapp-preload.ts`) grava
+  `system-theme-mode = true` antes do WhatsApp carregar, para que ele siga o
+  tema do BitWhat mesmo que tenha sido fixado como "Claro" dentro do WhatsApp.
+  Esse preload não expõe nenhuma API à página.
 
 ## Arquitetura
 

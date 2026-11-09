@@ -5,6 +5,7 @@ import { applyLoginItemSettings, registerIpc } from './ipc'
 import { logger } from './services/logger'
 import { SessionManager } from './services/session-manager'
 import { SettingsStore } from './services/settings-store'
+import { applyNativeTheme } from './services/theme-manager'
 import { TrayManager } from './services/tray-manager'
 import { WindowManager } from './services/window-manager'
 
@@ -31,12 +32,14 @@ if (!gotSingleInstanceLock) {
     sessionManager.configure()
 
     const preferences = settingsStore.getPreferences()
+    sessionManager.setNotificationsMuted(preferences.muteNotifications)
+    applyNativeTheme(preferences.theme)
     applyLoginItemSettings(preferences)
 
     windowManager = new WindowManager(settingsStore, sessionManager)
     registerIpc({ windowManager, sessionManager, settingsStore })
 
-    const trayManager = new TrayManager(windowManager, sessionManager)
+    const trayManager = new TrayManager(windowManager, sessionManager, settingsStore)
     trayManager.create()
     windowManager.setTrayManager(trayManager)
 

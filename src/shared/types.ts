@@ -36,6 +36,7 @@ export interface AppPreferences {
   whatsappPanel: WhatsAppPanel
   chatFormat: ChatFormat
   theme: ThemePreference
+  muteNotifications: boolean
 }
 
 export const DEFAULT_PREFERENCES: AppPreferences = {
@@ -44,7 +45,8 @@ export const DEFAULT_PREFERENCES: AppPreferences = {
   startWithWindows: false,
   whatsappPanel: 'contacts',
   chatFormat: 'standard',
-  theme: 'system'
+  theme: 'dark',
+  muteNotifications: false
 }
 
 export function resolveWhatsAppPanelMode(preferences: Pick<AppPreferences, 'whatsappPanel' | 'chatFormat'>): WhatsAppPanelMode {

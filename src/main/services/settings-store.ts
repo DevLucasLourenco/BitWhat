@@ -136,6 +136,10 @@ export class SettingsStore {
       sanitized.theme = input.theme
     }
 
+    if (typeof input.muteNotifications === 'boolean') {
+      sanitized.muteNotifications = input.muteNotifications
+    }
+
     return sanitized
   }
 
