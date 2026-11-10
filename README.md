@@ -124,6 +124,20 @@ O WhatsApp Web não usa o Chrome instalado no Windows quando roda dentro deste a
   é reiniciado. Após 3 quedas em 10 minutos, mostra o aviso e o botão
   `Tentar novamente`. Eventos técnicos ficam em `%APPDATA%\BitWhat\logs\bitwhat.log`
   (sem conteúdo de conversas).
+- Envio de arquivos: o menu `+` (Documento, Fotos e vídeos, Câmera...) e o
+  editor de envio do WhatsApp aparecem completos — prévia, legenda,
+  ferramentas, miniaturas com remover, `Adicionar arquivo`, `Fechar` e
+  `Enviar` — para foto, vídeo, documento, arquivo colado ou arrastado. A janela
+  aumenta enquanto o editor está aberto e volta ao tamanho anterior ao fechar.
+- Clique direito: menus do próprio WhatsApp (mensagens, conversas) aparecem; no
+  campo de texto há `Desfazer`, `Refazer`, `Recortar`, `Copiar`, `Colar`
+  (inclusive imagem/arquivo copiado) e `Selecionar tudo`, com sugestões do
+  corretor ortográfico; em links, `Abrir no navegador` e `Copiar link`.
+- Painel de emojis, GIFs e figurinhas: abre ajustado à largura da janela,
+  também no `Mini` (do topo até o campo de texto).
+- `Esc`: fecha o que estiver aberto (menu, diálogo, painel de emojis, editor de
+  envio); numa conversa sem nada aberto, volta aos contatos.
+- Mensagens enviadas em cinza (`#505050` no escuro, `#d4d4d4` no claro).
 - Navegação automática: clicar em um contato abre o chat; no chat, o botão de sidebar volta aos contatos.
 - Ao abrir uma conversa, ela começa no fim (última mensagem). A rolagem é
   mantida no fim enquanto o layout se ajusta (até 4 s) e para assim que o

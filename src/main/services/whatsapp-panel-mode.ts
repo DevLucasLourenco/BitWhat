@@ -35,7 +35,63 @@ html[data-bitwhat-panel="mini-chat"] #app:not([data-bitwhat-connected-projection
   visibility: hidden !important;
 }
 
-[data-bitwhat-panel-hidden="true"] {
+/* Contêineres fora do painel ficam escondidos, exceto os que hospedam menus e
+   diálogos do WhatsApp (menu do "+"/Anexar, clique direito em mensagens e
+   conversas, "Mais opções", confirmações como "Descartar?"). Eles são montados
+   sob demanda em contêineres irmãos do chat; escondê-los deixava esses botões
+   sem efeito. Se o contêiner tiver a lista ou o chat, continua escondido. */
+/* Modo palco (Mini): invólucro original do WhatsApp mantido como camada
+   transparente acima do palco, só para menus e o painel de emojis/figurinhas. */
+html[data-bitwhat-panel] #app:not([data-bitwhat-connected-projection="true"]) > [data-bitwhat-overlay-shell="true"][data-bitwhat-overlay-shell="true"]:not(#bitwhat-stage) {
+  display: block !important;
+  visibility: visible !important;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483647 !important;
+  background: transparent !important;
+  pointer-events: none !important;
+}
+
+[data-bitwhat-overlay-shell="true"] > * {
+  position: absolute !important;
+  inset: 0 !important;
+  background: transparent !important;
+  pointer-events: none !important;
+}
+
+[data-bitwhat-overlay-shell="true"] > * > :not(#wa-popovers-bucket):not(#expressions-panel-container):not(:has([role="menu"], [role="dialog"])) {
+  display: none !important;
+}
+
+[data-bitwhat-overlay-shell="true"] #wa-popovers-bucket > *,
+[data-bitwhat-overlay-shell="true"] #expressions-panel-container > *,
+[data-bitwhat-overlay-shell="true"] [role="menu"],
+[data-bitwhat-overlay-shell="true"] [role="dialog"] {
+  pointer-events: auto !important;
+}
+
+/* A camada de menus precisa ficar acima do palco (mesmo z-index máximo). */
+#app:has(> [data-bitwhat-overlay-shell="true"]) > #bitwhat-stage {
+  z-index: 2147483646 !important;
+}
+
+/* Menus (ex.: "+"/Anexar) mais altos que a janela do Mini: rolam. */
+[data-bitwhat-overlay-shell="true"] [role="menu"] {
+  max-height: calc(100vh - 76px) !important;
+  overflow-y: auto !important;
+}
+
+/* No Mini a janela é baixa: o painel de emojis/figurinhas ocupa do topo até
+   logo acima do campo de texto, em vez da posição calculada pelo WhatsApp. */
+[data-bitwhat-overlay-shell="true"] [data-bitwhat-expressions-popup="true"] {
+  top: 4px !important;
+  bottom: 68px !important;
+  height: auto !important;
+  max-height: none !important;
+}
+
+[data-bitwhat-panel-hidden="true"]:not(:has([role="menu"], [role="dialog"])):not(#expressions-panel-container),
+[data-bitwhat-panel-hidden="true"]:has(#pane-side, [data-bitwhat-chat-panel="true"], [data-bitwhat-chat-fill="true"]) {
   display: none !important;
   visibility: hidden !important;
 }
@@ -259,17 +315,29 @@ html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [
   box-sizing: border-box !important;
 }
 
-@media (max-width: 520px) {
-  #bitwhat-stage[data-panel="chat"] [data-bitwhat-chat-composer="true"] [data-testid="compose-box"] button:not([data-bitwhat-media-action="true"]):not(:has([data-bitwhat-media-action="true"], [data-icon="mic-outlined"], [data-testid="mic-outlined"], [data-icon*="send" i], [data-testid*="send" i])),
-  html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-chat-composer="true"] [data-testid="compose-box"] button:not([data-bitwhat-media-action="true"]):not(:has([data-bitwhat-media-action="true"], [data-icon="mic-outlined"], [data-testid="mic-outlined"], [data-icon*="send" i], [data-testid*="send" i])) {
-    display: none !important;
-    visibility: hidden !important;
-  }
+/* Painel de emojis/GIFs/figurinhas: o WhatsApp o desenha com 560 px ancorado
+   no botão; na janela compacta ele saía pela esquerda. Ajusta à largura. */
+[data-bitwhat-expressions-popup="true"] {
+  left: 8px !important;
+  right: 8px !important;
+  width: auto !important;
+  max-width: calc(100vw - 16px) !important;
+}
 
-  #bitwhat-stage[data-panel="chat"] [data-bitwhat-chat-composer="true"] [data-testid="conversation-compose-box-input"],
-  html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-chat-composer="true"] [data-testid="conversation-compose-box-input"] {
-    min-width: 96px !important;
-  }
+[data-bitwhat-expressions-popup="true"] ul,
+[data-bitwhat-expressions-popup="true"] ul > div {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* O contêiner interno do rodapé precisa esticar; senão encolhe ao conteúdo e o
+   campo de texto fica estreito (o placeholder quebra em duas linhas). */
+#bitwhat-stage[data-panel="chat"] [data-bitwhat-chat-composer="true"] > :first-child,
+html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-chat-composer="true"] > :first-child {
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
 }
 
 #bitwhat-stage[data-panel="chat"] [data-bitwhat-chat-composer="true"] [data-bitwhat-media-action="true"],
@@ -313,6 +381,9 @@ html[data-bitwhat-panel="chat"] #app[data-bitwhat-connected-projection="true"] [
 }
 
 html[data-bitwhat-panel="image"] #app[data-bitwhat-connected-projection="true"] [data-bitwhat-image-fill="true"] {
+  /* O WhatsApp reserva margem para o cabeçalho da gaveta (escondido aqui);
+     sem zerar, a faixa de miniaturas/Adicionar arquivo/Enviar fica cortada. */
+  margin: 0 !important;
   display: flex !important;
   flex: 1 1 auto !important;
   flex-direction: column !important;
@@ -339,9 +410,11 @@ html[data-bitwhat-panel="image"] [data-bitwhat-media-preview="true"] canvas {
   max-height: 68vh !important;
 }
 
-html[data-bitwhat-panel="image"] [data-bitwhat-image-control="other"] {
-  display: none !important;
-  visibility: hidden !important;
+html[data-bitwhat-panel="image"] [data-bitwhat-media-preview="true"] {
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
 }
 
 html[data-bitwhat-panel="image"] [data-bitwhat-image-control="send"],
@@ -364,7 +437,7 @@ html[data-bitwhat-panel="image"] [data-bitwhat-image-control="cancel"] {
   overflow: hidden !important;
 }
 
-#bitwhat-stage[data-panel="mini-chat"] [data-bitwhat-chat-panel="true"][data-bitwhat-mini-ready="true"] > :not(#bitwhat-mini-chat-layout):not(:has([data-bitwhat-media-preview="true"])) {
+#bitwhat-stage[data-panel="mini-chat"] [data-bitwhat-chat-panel="true"][data-bitwhat-mini-ready="true"] > :not(#bitwhat-mini-chat-layout):not(:has([data-bitwhat-media-preview="true"])):not(#expressions-panel-container):not(:has([role="menu"], [role="dialog"])) {
   display: none !important;
   visibility: hidden !important;
 }
@@ -566,8 +639,14 @@ html[data-bitwhat-theme="light"] [role="textbox"] {
 }
 
 /* Change only the background of messages sent from this account. */
+/* O WhatsApp passou a usar --WDS-systems-bubble-surface-outgoing, redefinida
+   dentro da página; por isso o valor vai direto nas linhas de mensagem. */
 html[data-bitwhat-panel="chat"],
-html[data-bitwhat-panel="mini-chat"] {
+html[data-bitwhat-panel="mini-chat"],
+html[data-bitwhat-panel="chat"] [data-id],
+html[data-bitwhat-panel="mini-chat"] [data-id] {
+  --WDS-systems-bubble-surface-outgoing: #d4d4d4 !important;
+  --WDS-systems-bubble-surface-outgoing-RGB: 212, 212, 212 !important;
   --outgoing-background: #d4d4d4 !important;
   --outgoing-background-rgb: 212, 212, 212 !important;
   --outgoing-background-deeper: #c8c8c8 !important;
@@ -575,7 +654,11 @@ html[data-bitwhat-panel="mini-chat"] {
 
 @media (prefers-color-scheme: dark) {
   html[data-bitwhat-panel="chat"]:not([data-bitwhat-theme="light"]),
-  html[data-bitwhat-panel="mini-chat"]:not([data-bitwhat-theme="light"]) {
+  html[data-bitwhat-panel="mini-chat"]:not([data-bitwhat-theme="light"]),
+  html[data-bitwhat-panel="chat"]:not([data-bitwhat-theme="light"]) [data-id],
+  html[data-bitwhat-panel="mini-chat"]:not([data-bitwhat-theme="light"]) [data-id] {
+    --WDS-systems-bubble-surface-outgoing: #505050 !important;
+    --WDS-systems-bubble-surface-outgoing-RGB: 80, 80, 80 !important;
     --outgoing-background: #505050 !important;
     --outgoing-background-rgb: 80, 80, 80 !important;
     --outgoing-background-deeper: #5b5b5b !important;
@@ -687,6 +770,9 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     if (typeof state.onPaste === 'function') {
       document.removeEventListener('paste', state.onPaste, true);
     }
+    if (typeof state.onKeyDown === 'function') {
+      window.removeEventListener('keydown', state.onKeyDown, true);
+    }
     window.clearTimeout(state.timer);
     window.clearTimeout(state.imageCloseTimer);
     state.stopBottomPin?.();
@@ -756,6 +842,7 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     clearPanelAttributes(state.fillPath);
     state.stage?.remove?.();
     restoreCollection(state.detached);
+    (state.overlayShells || []).forEach((element) => element?.removeAttribute?.('data-bitwhat-overlay-shell'));
   };
 
   const previousPanel = window[stateKey]?.requestedPanel;
@@ -782,6 +869,7 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     fillPath: [],
     placeholder: undefined,
     detached: [],
+    overlayShells: [],
     pruned: [],
     vault: document.createDocumentFragment(),
     observer: undefined,
@@ -1056,6 +1144,11 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     return shell instanceof HTMLElement ? { pane: shell, chat: chatPanel } : null;
   };
 
+  const isOverlayHost = (node) =>
+    node.id === 'expressions-panel-container' ||
+    Boolean(node.querySelector('#expressions-panel-container, [role="menu"], [role="dialog"]')) ||
+    (node.childElementCount === 0 && !(node.textContent || '').trim());
+
   const detachNode = (node, collection) => {
     if (
       !node ||
@@ -1076,6 +1169,30 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     }
 
     if (collection === state.detached && state.stage?.contains?.(node)) {
+      return;
+    }
+
+    // Modo palco (Mini): o invólucro original do WhatsApp guarda as camadas de
+    // menus (#wa-popovers-bucket) e o painel de emojis/figurinhas. Fica no
+    // documento como camada transparente sobre o palco (ver CSS).
+    if (
+      collection === state.detached &&
+      isElement(node) &&
+      node.querySelector('#wa-popovers-bucket, #expressions-panel-container')
+    ) {
+      node.setAttribute('data-bitwhat-overlay-shell', 'true');
+      state.overlayShells.push(node);
+      return;
+    }
+
+    // Contêineres onde o WhatsApp monta menus (+/Anexar, clique direito),
+    // diálogos e o painel de emojis/GIFs/figurinhas: se fossem removidos do
+    // documento, o WhatsApp os preencheria fora da página e nada apareceria
+    // (era o caso no Mini). Ficam no lugar, só escondidos; o CSS os libera
+    // quando recebem um menu, diálogo ou o painel.
+    if (collection === state.pruned && isElement(node) && isOverlayHost(node)) {
+      node.setAttribute('data-bitwhat-panel-hidden', 'true');
+      state.hidden.push(node);
       return;
     }
 
@@ -1374,25 +1491,46 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     });
   };
 
-  const findImagePanelRoot = () => {
-    const confirmed = findMediaPreviewRoots();
-    if (confirmed.length > 0) {
-      return confirmed[0];
+  // Editor de mídia do WhatsApp (prévia grande, legenda, ferramentas, miniaturas,
+  // "Adicionar arquivo", Fechar e Enviar): o menor ancestral do canvas do editor
+  // que contém o Enviar e o Fechar. Sem isto, a busca genérica abaixo pegava a
+  // miniatura (media-editor-attachment-thumb) e escondia o resto do editor.
+  const findMediaEditorRoot = () => {
+    const anchor = document.querySelector(
+      '[data-testid="media-editor-canvas"], [data-testid="media-caption-input-container"]'
+    );
+    if (!isElement(anchor)) {
+      return null;
     }
 
-    const candidates = Array.from(
-      document.querySelectorAll(
-        '[role="dialog"], [data-animate-modal-popup="true"], [data-testid*="media" i], [data-testid*="image" i], [data-testid*="preview" i], [aria-label*="imagem" i], [aria-label*="image" i]'
-      )
-    ).filter((element) => isElement(element) && !element.hidden && element.getAttribute('aria-hidden') !== 'true');
+    const isSend = (element) => /(send|enviar)/i.test(describeAction(element));
+    const isClose = (element) => /(fechar|close|cancel|cancelar)/i.test(describeAction(element));
+    let current = anchor.parentElement;
+    let depth = 0;
+    while (current instanceof HTMLElement && current !== document.body && current.id !== 'app' && depth < 20) {
+      const actions = Array.from(current.querySelectorAll('button, [role="button"]')).filter(isElement);
+      if (actions.some(isSend) && actions.some(isClose)) {
+        return current;
+      }
+      current = current.parentElement;
+      depth += 1;
+    }
 
-    const mediaCandidates = candidates.filter((element) =>
-      /(media|image|imagem|preview|prévia|previa)/i.test(
-        [element.getAttribute('data-testid'), element.getAttribute('aria-label')].filter(Boolean).join(' ')
-      )
-    );
+    return null;
+  };
 
-    return mediaCandidates.at(-1) || candidates.at(-1) || null;
+  const findImagePanelRoot = () => {
+    const editorRoot = findMediaEditorRoot();
+    if (editorRoot) {
+      return editorRoot;
+    }
+
+    // Só prévias confirmadas (mídia + botão de enviar). O antigo fallback por
+    // nome ([data-testid*="media"], [role="dialog"]...) pegava contêineres
+    // permanentes do WhatsApp (ex.: media-url-provider) e deixava o app preso no
+    // modo imagem depois de fechar o editor.
+    const confirmed = findMediaPreviewRoots();
+    return confirmed[0] || null;
   };
 
   const findImageActions = (preview) => {
@@ -2112,7 +2250,67 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     return true;
   };
 
+  const markExpressionsPopup = () => {
+    const tablist = document.querySelector('#expressions-panel-container [role="tablist"], #expressions-panel-container [role="tab"]');
+    let popup = tablist;
+    while (popup instanceof HTMLElement && popup.id !== 'expressions-panel-container' && getComputedStyle(popup).position !== 'absolute') {
+      popup = popup.parentElement;
+    }
+    if (popup instanceof HTMLElement && popup.id !== 'expressions-panel-container' && !popup.hasAttribute('data-bitwhat-expressions-popup')) {
+      popup.setAttribute('data-bitwhat-expressions-popup', 'true');
+    }
+  };
+
+  // Esc: com menu, diálogo, editor de envio, painel de emojis ou resposta aberta,
+  // vai para o WhatsApp (fecha o que estiver aberto). Numa conversa sem nada
+  // aberto, o WhatsApp fecharia a conversa e desmontaria o painel; em vez disso
+  // volta aos contatos pelo fluxo do app (que envia o próprio Esc liberado).
+  const isOverlayOpen = () => {
+    if (requestedPanel === 'image' || findMediaEditorRoot()) {
+      return true;
+    }
+    const isVisible = (element) => {
+      const box = element.getBoundingClientRect();
+      return box.width > 0 && box.height > 0;
+    };
+    if (Array.from(document.querySelectorAll('[role="menu"], [role="dialog"], [aria-modal="true"]')).some(isVisible)) {
+      return true;
+    }
+    if (document.querySelector('#expressions-panel-container [role="tab"]')) {
+      return true;
+    }
+    const composer = document.querySelector('[data-bitwhat-chat-composer="true"], footer');
+    return Boolean(
+      composer &&
+        Array.from(composer.querySelectorAll('button, [role="button"]')).some((button) =>
+          /(cancelar|fechar|close|cancel)/i.test(button.getAttribute('aria-label') || '')
+        )
+    );
+  };
+
+  const onKeyDown = (event) => {
+    if (event.key !== 'Escape' && event.key !== 'Esc') {
+      return;
+    }
+    if ((window.__bitWhatEscBypassUntil || 0) > Date.now()) {
+      return;
+    }
+    if (requestedPanel !== 'chat' && requestedPanel !== 'mini-chat') {
+      return;
+    }
+    if (isOverlayOpen()) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    window.__bitWhatEscBypassUntil = Date.now() + 1500;
+    state.reportedPanel = undefined;
+    reportPanelChange('contacts');
+  };
+
   const applyPanel = () => {
+    markExpressionsPopup();
     if (requestedPanel === 'image') {
       if (state.connectedProjection) {
         return refreshImageProjection();
@@ -2120,7 +2318,11 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
       return mountImageProjection(markMediaPreview(findImagePanelRoot())[0]);
     }
 
-    if (requestedPanel !== 'contacts' && markMediaPreview().length > 0) {
+    // Editor de envio do WhatsApp aberto (foto, vídeo, documento, figurinha, ou
+    // arquivo arrastado): ele fica fora do chat isolado, então muda para o modo
+    // do editor (janela maior). Antes só imagens eram reconhecidas e a prévia de
+    // documentos ficava escondida.
+    if (requestedPanel !== 'contacts' && (findMediaEditorRoot() || markMediaPreview().length > 0)) {
       reportPanelChange('image');
       return true;
     }
@@ -2175,12 +2377,8 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
       return;
     }
 
-    const hasImage = Array.from(input.files || []).some(
-      (file) =>
-        file.type.startsWith('image/') ||
-        /\.(png|jpe?g|gif|webp|bmp|heic|heif|avif)$/i.test(file.name)
-    );
-    if (!hasImage) {
+    // Qualquer arquivo escolhido (foto, vídeo, documento) abre o editor de envio.
+    if (!input.files || input.files.length === 0) {
       return;
     }
 
@@ -2197,8 +2395,8 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     }
 
     const clipboardItems = Array.from(event.clipboardData?.items || []);
-    const hasImage = clipboardItems.some((item) => item.type.toLowerCase().startsWith('image/'));
-    if (!hasImage) {
+    const hasFile = clipboardItems.some((item) => item.kind === 'file');
+    if (!hasFile) {
       return;
     }
 
@@ -2305,9 +2503,11 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
   state.onClick = onClick;
   state.onChange = onChange;
   state.onPaste = onPaste;
+  state.onKeyDown = onKeyDown;
   document.addEventListener('click', onClick, true);
   document.addEventListener('change', onChange, true);
   document.addEventListener('paste', onPaste, true);
+  window.addEventListener('keydown', onKeyDown, true);
 
   const observer = new MutationObserver(() => {
     window.clearTimeout(state.timer);
