@@ -114,15 +114,23 @@ O WhatsApp Web não usa o Chrome instalado no Windows quando roda dentro deste a
 
 ## Recursos e configurações
 
+- Tela de login com a identidade do BitWhat: enquanto o QR Code estiver na
+  página, uma camada com logo, nome e instruções cobre a tela e o QR real do
+  WhatsApp fica centralizado num card (`whatsapp-login-screen.ts`). O link
+  `Entrar com número de telefone` abre o fluxo do próprio WhatsApp. A camada
+  some ao concluir o login.
 - Navegação automática: clicar em um contato abre o chat; no chat, o botão de sidebar volta aos contatos.
 - Ao abrir uma conversa, ela começa no fim (última mensagem). A rolagem é
   mantida no fim enquanto o layout se ajusta (até 4 s) e para assim que o
   usuário rola por conta própria.
+- Painel da engrenagem compacto: formato do chat, tema, `Sempre no topo`,
+  `Silenciar notificações`, `Iniciar na bandeja`, `Iniciar com Windows`,
+  `Limpar sessão`, `Ocultar` e `Sair`.
 - Formato do chat: `Padrão` ou `Mini`.
-- O formato `Mini` redimensiona a janela para a visualização reduzida.
-- Sempre no topo.
-- Iniciar minimizada na bandeja.
-- Iniciar com Windows.
+- O formato `Mini` reduz a janela (440 px de largura) e mostra a conversa em
+  coluna única: cabeçalho em linha (foto + nome), mensagens e campo de texto.
+- `Iniciar com Windows` abre a janela normalmente; para abrir oculto na
+  bandeja, ative também `Iniciar na bandeja`.
 - Tema claro, escuro ou sistema para a tela interna e para o WhatsApp Web.
   O padrão é `Escuro`: ao iniciar, o app aplica `nativeTheme.themeSource`, e
   o preload do WhatsApp (`src/preload/whatsapp-preload.ts`) grava

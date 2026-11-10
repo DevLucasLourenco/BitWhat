@@ -369,12 +369,14 @@ html[data-bitwhat-panel="image"] [data-bitwhat-image-control="cancel"] {
   visibility: hidden !important;
 }
 
+/* Mini: cabeçalho em linha (avatar + nome) no topo, mensagens no meio
+   ocupando a altura disponível e o campo de texto embaixo, na largura toda. */
 #bitwhat-mini-chat-layout {
   display: grid !important;
-  grid-template-columns: minmax(96px, 24%) minmax(0, 1fr) !important;
-  grid-template-rows: minmax(132px, 168px) minmax(48px, auto) !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: auto minmax(0, 1fr) auto !important;
   width: 100% !important;
-  height: min(248px, 100vh) !important;
+  height: 100% !important;
   max-height: 100% !important;
   min-width: 0 !important;
   min-height: 0 !important;
@@ -384,84 +386,68 @@ html[data-bitwhat-panel="image"] [data-bitwhat-image-control="cancel"] {
 
 #bitwhat-mini-chat-layout > [data-bitwhat-chat-header="true"] {
   grid-column: 1 !important;
-  grid-row: 1 / span 2 !important;
+  grid-row: 1 !important;
   display: flex !important;
-  flex-direction: column !important;
+  flex-direction: row !important;
   align-items: center !important;
-  justify-content: flex-start !important;
   width: 100% !important;
-  height: 100% !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  max-height: 40px !important;
   min-width: 0 !important;
-  min-height: 0 !important;
-  padding: 10px 6px !important;
+  padding: 0 10px !important;
   overflow: hidden !important;
-  border-inline-end: 1px solid var(--border-list, rgba(134, 150, 160, 0.22)) !important;
+  border-bottom: 1px solid var(--border-list, rgba(134, 150, 160, 0.22)) !important;
 }
 
 #bitwhat-mini-chat-layout > [data-bitwhat-chat-header="true"] > :first-child {
   display: flex !important;
-  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  flex-direction: row !important;
   align-items: center !important;
-  justify-content: flex-start !important;
   gap: 8px !important;
-  width: 100% !important;
   min-width: 0 !important;
   overflow: hidden !important;
 }
 
-#bitwhat-mini-chat-layout > [data-bitwhat-chat-header="true"],
 #bitwhat-mini-chat-layout > [data-bitwhat-chat-header="true"] * {
-  max-width: 100% !important;
   min-width: 0 !important;
   box-sizing: border-box !important;
 }
 
 #bitwhat-mini-chat-layout > [data-bitwhat-chat-header="true"] img,
-#bitwhat-mini-chat-layout > [data-bitwhat-chat-header="true"] canvas,
-#bitwhat-mini-chat-layout > [data-bitwhat-chat-header="true"] [data-icon] {
+#bitwhat-mini-chat-layout > [data-bitwhat-chat-header="true"] canvas {
   flex: 0 0 auto !important;
-  width: 44px !important;
-  height: 44px !important;
-  max-width: 44px !important;
-  max-height: 44px !important;
+  width: 28px !important;
+  height: 28px !important;
+  max-width: 28px !important;
+  max-height: 28px !important;
 }
 
 #bitwhat-mini-chat-layout > [data-bitwhat-chat-header="true"] [dir="auto"],
 #bitwhat-mini-chat-layout > [data-bitwhat-chat-header="true"] span[title],
 #bitwhat-mini-chat-layout > [data-bitwhat-chat-header="true"] div[title] {
-  display: -webkit-box !important;
-  width: 100% !important;
   overflow: hidden !important;
-  -webkit-box-orient: vertical !important;
-  -webkit-line-clamp: 2 !important;
-  white-space: normal !important;
-  overflow-wrap: anywhere !important;
-  word-break: break-word !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
   line-height: 1.2 !important;
-  text-align: center !important;
+  text-align: left !important;
 }
 
-#bitwhat-mini-chat-layout > [data-bitwhat-chat-header="true"] > :not(:first-child),
-#bitwhat-mini-chat-layout > [data-bitwhat-chat-header="true"] > :not(:first-child) button,
-#bitwhat-mini-chat-layout > [data-bitwhat-chat-header="true"] > :not(:first-child) [role="button"],
-#bitwhat-mini-chat-layout > [data-bitwhat-chat-header="true"] > :not(:first-child) [data-icon="search"],
-#bitwhat-mini-chat-layout > [data-bitwhat-chat-header="true"] > :not(:first-child) [data-icon="menu"],
-#bitwhat-mini-chat-layout > [data-bitwhat-chat-header="true"] > :not(:first-child) [data-icon="more"],
-#bitwhat-mini-chat-layout > [data-bitwhat-chat-header="true"] > :not(:first-child) [data-icon="audio-call"],
-#bitwhat-mini-chat-layout > [data-bitwhat-chat-header="true"] > :not(:first-child) [data-icon="video-call"] {
+#bitwhat-mini-chat-layout > [data-bitwhat-chat-header="true"] > :not(:first-child) {
   display: none !important;
   visibility: hidden !important;
 }
 
 #bitwhat-mini-chat-layout > [data-bitwhat-message-scroll="true"] {
-  grid-column: 2 !important;
-  grid-row: 1 !important;
+  grid-column: 1 !important;
+  grid-row: 2 !important;
   display: flex !important;
   flex-direction: column !important;
   width: 100% !important;
-  height: 168px !important;
-  max-height: 168px !important;
-  min-height: 126px !important;
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
   min-width: 0 !important;
   position: relative !important;
   overflow-x: hidden !important;
@@ -475,31 +461,24 @@ html[data-bitwhat-panel="image"] [data-bitwhat-image-control="cancel"] {
 }
 
 #bitwhat-mini-chat-layout > [data-bitwhat-chat-composer="true"] {
-  grid-column: 2 !important;
-  grid-row: 2 !important;
+  grid-column: 1 !important;
+  grid-row: 3 !important;
   display: flex !important;
   align-items: center !important;
   width: 100% !important;
   min-width: 0 !important;
   min-height: 44px !important;
-  max-height: 74px !important;
+  max-height: 96px !important;
   overflow: hidden !important;
 }
 
-@media (max-width: 390px) {
-  #bitwhat-mini-chat-layout {
-    grid-template-columns: minmax(82px, 24%) minmax(0, 1fr) !important;
-    grid-template-rows: minmax(118px, 154px) minmax(42px, auto) !important;
-  }
-
-  #bitwhat-mini-chat-layout > [data-bitwhat-message-scroll="true"] {
-    height: 154px !important;
-    max-height: 154px !important;
-  }
-
-  #bitwhat-mini-chat-layout > [data-bitwhat-chat-header="true"] {
-    padding: 6px 4px !important;
-  }
+/* Sem isto o contêiner do WhatsApp encolhe ao conteúdo: o campo de texto fica
+   com 0 px e os ícones passam por cima do "Digite uma mensagem". */
+#bitwhat-mini-chat-layout > [data-bitwhat-chat-composer="true"] > :first-child {
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
 }
 
 @media (max-width: 520px) {

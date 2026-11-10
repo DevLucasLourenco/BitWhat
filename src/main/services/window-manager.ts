@@ -40,6 +40,7 @@ import {
   WHATSAPP_PANEL_CSS,
   WHATSAPP_THEME_CSS
 } from './whatsapp-panel-mode'
+import { createWhatsAppLoginScreenScript, WHATSAPP_LOGIN_CSS } from './whatsapp-login-screen'
 
 const MIN_WIDTH = 360
 const MIN_HEIGHT = 560
@@ -49,10 +50,19 @@ const DEFAULT_PANEL_WIDTH = 380
 const DEFAULT_PANEL_HEIGHT = 618
 const IMAGE_WINDOW_WIDTH = 760
 const IMAGE_WINDOW_HEIGHT = 800
-const MINI_MIN_WIDTH = 420
+// Mini: cabeçalho da conversa em linha (avatar + nome), mensagens e campo de
+// texto empilhados. A área do WhatsApp tem MINI_VIEW_HEIGHT abaixo da barra do app.
+const MINI_MIN_WIDTH = 380
 const MINI_MIN_HEIGHT = 260
-const MINI_WINDOW_WIDTH = 520
-const MINI_VIEW_HEIGHT = 248
+const MINI_WINDOW_WIDTH = 440
+const MINI_VIEW_HEIGHT = 300
+// Altura máxima aceita para a barra do app (topo + painel de configurações).
+const MAX_CHROME_HEIGHT = 640
+// Enquanto o WhatsApp não está pronto, o estado é reavaliado periodicamente:
+// o login por QR e a tela de carregamento do WhatsApp não geram novo evento de página.
+const STATE_PROBE_INTERVAL_MS = 2_000
+// Sem lista de conversas nem QR depois disso, assume carregado (seletores podem mudar).
+const STATE_FALLBACK_READY_MS = 30_000
 const DEFAULT_MARGIN = 16
 
 const SHORTCUT_TOGGLE_WINDOW = 'CommandOrControl+Shift+W'
@@ -118,6 +128,7 @@ export class WindowManager {
   private saveBoundsTimer?: NodeJS.Timeout | undefined
   private panelCssKey?: string | undefined
   private themeCssKey?: string | undefined
+  private loginCssKey?: string | undefined
   private isQuitting = false
   private allowProgrammaticEscape = false
   private currentPanel: WhatsAppPanelMode = resolveWhatsAppPanelMode(DEFAULT_PREFERENCES)
@@ -129,6 +140,8 @@ export class WindowManager {
   private resizeRafId?: number | undefined
   private gcInterval?: NodeJS.Timeout | undefined
   private disposeThemeListener?: (() => void) | undefined
+  private stateProbeTimer?: NodeJS.Timeout | undefined
+  private loadStartedAt = Date.now()
 
   constructor(settingsStore: SettingsStore, sessionManager: SessionManager) {
     this.settingsStore = settingsStore
@@ -235,6 +248,7 @@ export class WindowManager {
   }
 
   reloadWhatsApp(): void {
+    this.loadStartedAt = Date.now()
     this.setStatus(this.createStatus('loading', 'Carregando WhatsApp Web'))
     this.whatsappView?.webContents.setUserAgent(WHATSAPP_BROWSER_USER_AGENT)
     this.whatsappView?.webContents.loadURL(WHATSAPP_URL, {
@@ -272,7 +286,7 @@ export class WindowManager {
   }
 
   setChromeHeight(height: number): void {
-    const clamped = Math.max(56, Math.min(420, Math.round(height)))
+    const clamped = Math.max(48, Math.min(MAX_CHROME_HEIGHT, Math.round(height)))
     if (this.chromeHeight === clamped) {
       return
     }
@@ -366,6 +380,10 @@ export class WindowManager {
         this.resizeRafId = undefined
       }
       this.stopPeriodicGc()
+      if (this.stateProbeTimer) {
+        clearInterval(this.stateProbeTimer)
+        this.stateProbeTimer = undefined
+      }
       this.disposeThemeListener?.()
       this.disposeThemeListener = undefined
       this.mainWindow = undefined
@@ -447,8 +465,10 @@ export class WindowManager {
     })
 
     webContents.on('did-start-loading', () => {
+      this.loadStartedAt = Date.now()
       this.panelCssKey = undefined
       this.themeCssKey = undefined
+      this.loginCssKey = undefined
       this.setStatus(this.createStatus('loading', 'Carregando WhatsApp Web'))
 
       if (this.mainWindow?.isVisible()) {
@@ -462,6 +482,7 @@ export class WindowManager {
         this.reloadAttempts = 0
       }
       void this.applyWhatsAppTheme()
+      void this.applyWhatsAppLoginScreen()
       void this.applyWhatsAppPanelMode()
       this.detectWhatsAppState()
     })
@@ -472,6 +493,7 @@ export class WindowManager {
         this.reloadAttempts = 0
       }
       void this.applyWhatsAppTheme()
+      void this.applyWhatsAppLoginScreen()
       void this.applyWhatsAppPanelMode()
       this.detectWhatsAppState()
     })
@@ -550,6 +572,7 @@ export class WindowManager {
   }
 
   private loadWhatsApp(): void {
+    this.loadStartedAt = Date.now()
     this.setStatus(this.createStatus('loading', 'Carregando WhatsApp Web'))
     this.whatsappView?.webContents.setUserAgent(WHATSAPP_BROWSER_USER_AGENT)
     this.whatsappView?.webContents.loadURL(WHATSAPP_URL, {
@@ -581,7 +604,9 @@ export class WindowManager {
       )) as { hasChatList?: boolean; hasQrCandidate?: boolean; unsupportedBrowser?: boolean }
 
       if (state.hasChatList) {
-        this.setStatus(this.createStatus('ready', 'WhatsApp carregado'))
+        if (this.status.state !== 'ready') {
+          this.setStatus(this.createStatus('ready', 'WhatsApp carregado'))
+        }
         return
       }
 
@@ -597,7 +622,15 @@ export class WindowManager {
       }
 
       if (state.hasQrCandidate) {
-        this.setStatus(this.createStatus('waiting-login', 'Aguardando login/QR Code'))
+        if (this.status.state !== 'waiting-login') {
+          this.setStatus(this.createStatus('waiting-login', 'Aguardando login/QR Code'))
+        }
+        return
+      }
+
+      // Tela de carregamento do próprio WhatsApp: mantém o estado atual e a
+      // sondagem periódica tenta de novo, até o limite de segurança.
+      if (Date.now() - this.loadStartedAt < STATE_FALLBACK_READY_MS) {
         return
       }
 
@@ -612,6 +645,26 @@ export class WindowManager {
     this.status = status
     this.mainWindow?.webContents.send(IPC.statusChanged, status)
     this.trayManager?.updateStatus(status.state)
+    this.updateStateProbe()
+  }
+
+  private updateStateProbe(): void {
+    const pending =
+      this.status.state === 'initializing' ||
+      this.status.state === 'loading' ||
+      this.status.state === 'waiting-login' ||
+      this.status.state === 'session-cleared'
+
+    if (pending && !this.stateProbeTimer) {
+      this.stateProbeTimer = setInterval(() => void this.detectWhatsAppState(), STATE_PROBE_INTERVAL_MS)
+      this.stateProbeTimer.unref()
+      return
+    }
+
+    if (!pending && this.stateProbeTimer) {
+      clearInterval(this.stateProbeTimer)
+      this.stateProbeTimer = undefined
+    }
   }
 
   private async applyWhatsAppPanelMode(panel = resolveWhatsAppPanelMode(this.settingsStore.getPreferences())): Promise<void> {
@@ -645,6 +698,23 @@ export class WindowManager {
       await webContents.executeJavaScript(createApplyWhatsAppThemeScript(theme), true)
     } catch (error) {
       logger.warn('Falha ao aplicar tema do WhatsApp', error)
+    }
+  }
+
+  private async applyWhatsAppLoginScreen(): Promise<void> {
+    const webContents = this.whatsappView?.webContents
+    if (!webContents || webContents.isDestroyed()) {
+      return
+    }
+
+    try {
+      if (!this.loginCssKey) {
+        this.loginCssKey = await webContents.insertCSS(WHATSAPP_LOGIN_CSS)
+      }
+
+      await webContents.executeJavaScript(createWhatsAppLoginScreenScript(), true)
+    } catch (error) {
+      logger.warn('Falha ao aplicar tela de login do BitWhat', error)
     }
   }
 
