@@ -1,10 +1,11 @@
 import {
   CheckCircle2,
   DownloadCloud,
+  EyeOff,
   Loader2,
   LogOut,
-  Maximize2,
   MessageCircle,
+  Monitor,
   Moon,
   PanelLeftClose,
   Pin,
@@ -30,10 +31,10 @@ const DEFAULT_STATUS: WhatsAppStatus = {
   updatedAt: new Date().toISOString()
 }
 
-const themeOptions: Array<{ value: ThemePreference; label: string }> = [
-  { value: 'system', label: 'Sistema' },
-  { value: 'light', label: 'Claro' },
-  { value: 'dark', label: 'Escuro' }
+const themeOptions: Array<{ value: ThemePreference; label: string; icon: JSX.Element }> = [
+  { value: 'system', label: 'Sistema', icon: <Monitor size={13} /> },
+  { value: 'light', label: 'Claro', icon: <Sun size={13} /> },
+  { value: 'dark', label: 'Escuro', icon: <Moon size={13} /> }
 ]
 
 const chatFormatOptions: Array<{ value: ChatFormat; label: string }> = [
@@ -223,31 +224,34 @@ export function App(): JSX.Element {
 
         {settingsOpen && (
           <section className="settings-panel" aria-label="Configurações">
-            <div className="settings-grid">
-              <fieldset>
-                <legend>Formato do chat</legend>
-                <SegmentedControl
-                  value={preferences.chatFormat}
-                  options={chatFormatOptions}
-                  onChange={setActiveFormat}
-                />
-              </fieldset>
-
-              <fieldset>
-                <legend>Tema</legend>
-                <SegmentedControl
-                  value={preferences.theme}
-                  options={themeOptions}
-                  onChange={(theme) => void setPreferences({ theme })}
-                />
-              </fieldset>
+            <div className="settings-row">
+              <span className="settings-label">Chat</span>
+              <SegmentedControl
+                value={preferences.chatFormat}
+                options={chatFormatOptions}
+                onChange={setActiveFormat}
+              />
             </div>
 
-            <div className="switch-list">
+            <div className="settings-row">
+              <span className="settings-label">Tema</span>
+              <SegmentedControl
+                value={preferences.theme}
+                options={themeOptions}
+                onChange={(theme) => void setPreferences({ theme })}
+              />
+            </div>
+
+            <div className="switch-grid">
               <SwitchRow
                 checked={preferences.alwaysOnTop}
                 label="Sempre no topo"
                 onChange={(alwaysOnTop) => void setPreferences({ alwaysOnTop })}
+              />
+              <SwitchRow
+                checked={preferences.muteNotifications}
+                label="Silenciar notificações"
+                onChange={(muteNotifications) => void setPreferences({ muteNotifications })}
               />
               <SwitchRow
                 checked={preferences.startMinimized}
@@ -262,20 +266,17 @@ export function App(): JSX.Element {
             </div>
 
             <div className="settings-actions">
-              <button className="text-button" type="button" onClick={reloadWhatsApp} disabled={busyAction !== null}>
-                <RefreshCw size={16} />
-                Recarregar
-              </button>
               <button className="text-button danger" type="button" onClick={clearSession} disabled={busyAction !== null}>
-                <LogOut size={16} />
+                <LogOut size={14} />
                 Limpar sessão
               </button>
-              <button className="text-button quiet" type="button" onClick={() => window.bitWhat.hideWindow()}>
-                <Maximize2 size={16} />
+              <button className="text-button" type="button" onClick={() => void window.bitWhat.hideWindow()}>
+                <EyeOff size={14} />
                 Ocultar
               </button>
-              <button className="icon-button danger" type="button" title="Sair" aria-label="Sair" onClick={() => window.bitWhat.quit()}>
-                <Power size={16} />
+              <button className="text-button danger" type="button" onClick={() => void window.bitWhat.quit()}>
+                <Power size={14} />
+                Sair
               </button>
             </div>
           </section>
@@ -287,7 +288,7 @@ export function App(): JSX.Element {
 
 interface SegmentedControlProps<T extends string> {
   value: T
-  options: Array<{ value: T; label: string }>
+  options: Array<{ value: T; label: string; icon?: JSX.Element }>
   onChange: (value: T) => void
 }
 
@@ -301,8 +302,7 @@ function SegmentedControl<T extends string>({ value, options, onChange }: Segmen
           type="button"
           onClick={() => onChange(option.value)}
         >
-          {String(option.value) === 'light' && <Sun size={14} />}
-          {String(option.value) === 'dark' && <Moon size={14} />}
+          {option.icon}
           {option.label}
         </button>
       ))}
@@ -320,7 +320,12 @@ function SwitchRow({ checked, label, onChange }: SwitchRowProps): JSX.Element {
   return (
     <label className="switch-row">
       <span>{label}</span>
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.currentTarget.checked)} />
+      <input
+        type="checkbox"
+        role="switch"
+        checked={checked}
+        onChange={(event) => onChange(event.currentTarget.checked)}
+      />
     </label>
   )
 }

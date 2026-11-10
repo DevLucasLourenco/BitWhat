@@ -54,6 +54,7 @@ export function applyLoginItemSettings(preferences: AppPreferences): void {
   app.setLoginItemSettings({
     openAtLogin: preferences.startWithWindows,
     path: process.execPath,
-    args: ['--hidden']
+    // Abrir oculto ao ligar o Windows depende só de "Iniciar na bandeja".
+    args: preferences.startMinimized ? ['--hidden'] : []
   })
 }
