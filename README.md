@@ -122,7 +122,7 @@ O WhatsApp Web não usa o Chrome instalado no Windows quando roda dentro deste a
 - Recuperação automática: se o processo do WhatsApp cair (tela azul-escura sem
   resposta), o app recarrega sozinho; se a página travar por 30 s, o processo
   é reiniciado. Após 3 quedas em 10 minutos, mostra o aviso e o botão
-  `Tentar novamente`. Eventos técnicos ficam em `%APPDATA%\BitWhat\logsitwhat.log`
+  `Tentar novamente`. Eventos técnicos ficam em `%APPDATA%\BitWhat\logs\bitwhat.log`
   (sem conteúdo de conversas).
 - Navegação automática: clicar em um contato abre o chat; no chat, o botão de sidebar volta aos contatos.
 - Ao abrir uma conversa, ela começa no fim (última mensagem). A rolagem é
