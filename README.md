@@ -119,6 +119,11 @@ O WhatsApp Web não usa o Chrome instalado no Windows quando roda dentro deste a
   WhatsApp fica centralizado num card (`whatsapp-login-screen.ts`). O link
   `Entrar com número de telefone` abre o fluxo do próprio WhatsApp. A camada
   some ao concluir o login.
+- Recuperação automática: se o processo do WhatsApp cair (tela azul-escura sem
+  resposta), o app recarrega sozinho; se a página travar por 30 s, o processo
+  é reiniciado. Após 3 quedas em 10 minutos, mostra o aviso e o botão
+  `Tentar novamente`. Eventos técnicos ficam em `%APPDATA%\BitWhat\logsitwhat.log`
+  (sem conteúdo de conversas).
 - Navegação automática: clicar em um contato abre o chat; no chat, o botão de sidebar volta aos contatos.
 - Ao abrir uma conversa, ela começa no fim (última mensagem). A rolagem é
   mantida no fim enquanto o layout se ajusta (até 4 s) e para assim que o
