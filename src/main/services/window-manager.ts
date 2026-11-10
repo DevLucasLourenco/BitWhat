@@ -63,6 +63,14 @@ const MAX_CHROME_HEIGHT = 640
 const STATE_PROBE_INTERVAL_MS = 2_000
 // Sem lista de conversas nem QR depois disso, assume carregado (seletores podem mudar).
 const STATE_FALLBACK_READY_MS = 30_000
+// Se o processo da view do WhatsApp cai (falta de memória, crash), a view para
+// de pintar e aparece o fundo azul-escuro da janela, sem interação. O app
+// recarrega sozinho; após várias quedas seguidas, deixa a decisão ao usuário.
+const CRASH_RECOVERY_DELAY_MS = 1_500
+const CRASH_RECOVERY_WINDOW_MS = 10 * 60 * 1000
+const MAX_CRASH_RECOVERIES = 3
+// Página travada (sem responder) por este tempo é recarregada.
+const UNRESPONSIVE_RELOAD_MS = 30_000
 const DEFAULT_MARGIN = 16
 
 const SHORTCUT_TOGGLE_WINDOW = 'CommandOrControl+Shift+W'
@@ -141,6 +149,8 @@ export class WindowManager {
   private gcInterval?: NodeJS.Timeout | undefined
   private disposeThemeListener?: (() => void) | undefined
   private stateProbeTimer?: NodeJS.Timeout | undefined
+  private crashTimes: number[] = []
+  private unresponsiveTimer?: NodeJS.Timeout | undefined
   private loadStartedAt = Date.now()
 
   constructor(settingsStore: SettingsStore, sessionManager: SessionManager) {
@@ -511,8 +521,27 @@ export class WindowManager {
     })
 
     webContents.on('render-process-gone', (_event, details) => {
-      logger.warn(`Processo do WhatsApp finalizado: ${details.reason}`)
-      this.setStatus(this.createStatus('connection-error', 'Erro de conexão', 'O processo do WhatsApp foi encerrado.'))
+      logger.warn(`Processo do WhatsApp finalizado: ${details.reason} (código ${details.exitCode})`)
+      this.clearUnresponsiveTimer()
+      this.recoverFromCrash()
+    })
+
+    webContents.on('unresponsive', () => {
+      logger.warn('WhatsApp parou de responder')
+      this.clearUnresponsiveTimer()
+      this.unresponsiveTimer = setTimeout(() => {
+        this.unresponsiveTimer = undefined
+        logger.warn(`WhatsApp sem responder há ${UNRESPONSIVE_RELOAD_MS / 1000}s; reiniciando o processo`)
+        // Encerra o processo travado; 'render-process-gone' cuida de recarregar.
+        webContents.forcefullyCrashRenderer()
+      }, UNRESPONSIVE_RELOAD_MS)
+    })
+
+    webContents.on('responsive', () => {
+      if (this.unresponsiveTimer) {
+        logger.info('WhatsApp voltou a responder')
+      }
+      this.clearUnresponsiveTimer()
     })
 
     webContents.on('before-input-event', (event, input) => {
@@ -532,7 +561,7 @@ export class WindowManager {
     webContents.on('console-message', (_event, _level, message) => {
       const diagnosticPrefix = '__BITWHAT_PANEL_DIAG__:'
       if (message.startsWith(diagnosticPrefix)) {
-        logger.info(`Painel WhatsApp: ${message.slice(diagnosticPrefix.length)}`)
+        logger.diagnostic(`Painel WhatsApp: ${message.slice(diagnosticPrefix.length)}`)
         return
       }
 
@@ -638,6 +667,39 @@ export class WindowManager {
     } catch (error) {
       logger.warn('Falha na detecção mínima de estado do WhatsApp', error)
       this.setStatus(this.createStatus('ready', 'WhatsApp carregado'))
+    }
+  }
+
+  private recoverFromCrash(): void {
+    const now = Date.now()
+    this.crashTimes = this.crashTimes.filter((time) => now - time < CRASH_RECOVERY_WINDOW_MS)
+    this.crashTimes.push(now)
+
+    if (this.crashTimes.length > MAX_CRASH_RECOVERIES) {
+      logger.error(`WhatsApp caiu ${this.crashTimes.length} vezes em 10 min; recuperação automática suspensa`)
+      this.setStatus(
+        this.createStatus(
+          'connection-error',
+          'WhatsApp parou',
+          'O WhatsApp caiu várias vezes seguidas. Clique em Tentar novamente.'
+        )
+      )
+      return
+    }
+
+    logger.info(`Recuperando WhatsApp após queda (${this.crashTimes.length}/${MAX_CRASH_RECOVERIES})`)
+    this.setStatus(this.createStatus('loading', 'Recuperando WhatsApp'))
+    setTimeout(() => {
+      if (this.whatsappView && !this.whatsappView.webContents.isDestroyed()) {
+        this.reloadWhatsApp()
+      }
+    }, CRASH_RECOVERY_DELAY_MS)
+  }
+
+  private clearUnresponsiveTimer(): void {
+    if (this.unresponsiveTimer) {
+      clearTimeout(this.unresponsiveTimer)
+      this.unresponsiveTimer = undefined
     }
   }
 

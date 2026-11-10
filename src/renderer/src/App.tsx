@@ -282,6 +282,18 @@ export function App(): JSX.Element {
           </section>
         )}
       </section>
+
+      {/* Fica atrás da view do WhatsApp: só aparece se ela parar de pintar
+          (ex.: processo do WhatsApp caiu), em vez de uma tela azul vazia. */}
+      <section className="view-placeholder" aria-live="polite">
+        {statusTone === 'error' ? <TriangleAlert size={22} /> : <Loader2 size={22} className="spin" />}
+        <strong>{statusTone === 'ready' ? 'WhatsApp' : status.label}</strong>
+        <span>
+          {statusTone === 'ready'
+            ? 'Se esta área continuar vazia, use Recarregar na barra acima.'
+            : status.detail ?? 'Aguarde um instante…'}
+        </span>
+      </section>
     </main>
   )
 }
