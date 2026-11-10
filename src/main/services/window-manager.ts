@@ -2,11 +2,12 @@ import {
   app,
   BrowserView,
   BrowserWindow,
+  clipboard,
   globalShortcut,
   Menu,
   screen
 } from 'electron'
-import type { DownloadItem, Rectangle, WebContents } from 'electron'
+import type { ContextMenuParams, DownloadItem, MenuItemConstructorOptions, Rectangle, WebContents } from 'electron'
 import path from 'node:path'
 import {
   APP_NAME,
@@ -23,7 +24,7 @@ import {
 } from '../../shared/types'
 import { IPC } from '../../shared/ipc'
 import { getAssetPath } from './assets'
-import { attachNavigationGuard } from './navigation-guard'
+import { attachNavigationGuard, openExternalSafely } from './navigation-guard'
 import { SessionManager } from './session-manager'
 import { SettingsStore } from './settings-store'
 import { TrayManager } from './tray-manager'
@@ -141,6 +142,7 @@ export class WindowManager {
   private allowProgrammaticEscape = false
   private currentPanel: WhatsAppPanelMode = resolveWhatsAppPanelMode(DEFAULT_PREFERENCES)
   private boundsBeforeMini?: Rectangle | undefined
+  private lastRestoredBounds?: Rectangle | undefined
   private boundsBeforeImage?: Rectangle | undefined
   private panelBeforeImage?: WhatsAppPanelMode | undefined
   private reloadAttempts = 0
@@ -407,70 +409,22 @@ export class WindowManager {
       return
     }
 
+    // O Electron não tem menu de clique direito padrão: sem isto, clicar com o
+    // botão direito no campo de mensagem não oferecia "Colar" (inclusive para
+    // colar imagens/arquivos na conversa). Menus próprios do WhatsApp (conversas,
+    // mensagens) continuam funcionando, porque a página os trata antes.
     webContents.on('context-menu', (event, params) => {
-      if (params.mediaType !== 'image' || !params.hasImageContents) {
+      const template = this.buildContextMenu(webContents, params)
+      if (template.length === 0) {
         return
       }
 
       event.preventDefault()
-      const imageUrl = params.srcURL
-      const suggestedFilename = getImageFilename(params.suggestedFilename, imageUrl)
-      const menu = Menu.buildFromTemplate([
-        {
-          label: 'Copiar imagem',
-          click: () => webContents.copyImageAt(params.x, params.y)
-        },
-        {
-          label: 'Salvar imagem como…',
-          enabled: Boolean(imageUrl),
-          click: () => {
-            const whatsappSession = webContents.session
-            let cleanupTimer: NodeJS.Timeout | undefined
-            const cleanup = () => {
-              whatsappSession.removeListener('will-download', onWillDownload)
-              if (cleanupTimer) {
-                clearTimeout(cleanupTimer)
-              }
-            }
-            const onWillDownload = (_downloadEvent: Electron.Event, item: DownloadItem, sourceWebContents: WebContents) => {
-              if (sourceWebContents !== webContents || item.getURL() !== imageUrl) {
-                return
-              }
-
-              const filename = /\.(avif|bmp|gif|jpe?g|png|tiff?|webp)$/i.test(suggestedFilename)
-                ? suggestedFilename
-                : `${suggestedFilename}.${getImageExtension(item.getMimeType())}`
-
-              item.setSaveDialogOptions({
-                title: 'Salvar imagem',
-                defaultPath: filename,
-                filters: [
-                  {
-                    name: 'Imagens',
-                    extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'avif', 'tif', 'tiff']
-                  },
-                  { name: 'Todos os arquivos', extensions: ['*'] }
-                ]
-              })
-              cleanup()
-            }
-
-            whatsappSession.on('will-download', onWillDownload)
-            cleanupTimer = setTimeout(cleanup, 30_000)
-            cleanupTimer.unref()
-
-            try {
-              webContents.downloadURL(imageUrl)
-            } catch (error) {
-              cleanup()
-              logger.warn(`Não foi possível iniciar o download da imagem: ${String(error)}`)
-            }
-          }
-        }
-      ])
-
+      const menu = Menu.buildFromTemplate(template)
       if (this.mainWindow) {
-        menu.popup({ window: this.mainWindow })
+        // Posição do clique (coordenadas da view do WhatsApp, que fica abaixo da
+        // barra do app), em vez da posição atual do cursor do sistema.
+        menu.popup({ window: this.mainWindow, x: Math.round(params.x), y: Math.round(params.y + this.chromeHeight) })
       }
     })
 
@@ -545,13 +499,8 @@ export class WindowManager {
     })
 
     webContents.on('before-input-event', (event, input) => {
-      if (input.key === 'Escape' || input.key === 'Esc') {
-        if (!this.allowProgrammaticEscape) {
-          event.preventDefault()
-        }
-        return
-      }
-
+      // Esc não é mais bloqueado aqui: o script do painel decide na página
+      // (fecha menus/diálogos/editor ou volta aos contatos).
       if (input.key === 'F5' || (input.control && input.key.toLowerCase() === 'r')) {
         event.preventDefault()
         this.reloadWhatsApp()
@@ -668,6 +617,115 @@ export class WindowManager {
       logger.warn('Falha na detecção mínima de estado do WhatsApp', error)
       this.setStatus(this.createStatus('ready', 'WhatsApp carregado'))
     }
+  }
+
+  private buildContextMenu(webContents: WebContents, params: ContextMenuParams): MenuItemConstructorOptions[] {
+    const sections: MenuItemConstructorOptions[][] = []
+    const { editFlags } = params
+
+    if (params.isEditable && params.misspelledWord) {
+      const suggestions: MenuItemConstructorOptions[] = params.dictionarySuggestions.slice(0, 5).map((suggestion) => ({
+        label: suggestion,
+        click: () => webContents.replaceMisspelling(suggestion)
+      }))
+      suggestions.push({
+        label: 'Adicionar ao dicionário',
+        click: () => webContents.session.addWordToSpellCheckerDictionary(params.misspelledWord)
+      })
+      sections.push(suggestions)
+    }
+
+    if (params.isEditable) {
+      sections.push([
+        { label: 'Desfazer', accelerator: 'CommandOrControl+Z', enabled: editFlags.canUndo, click: () => webContents.undo() },
+        { label: 'Refazer', accelerator: 'CommandOrControl+Y', enabled: editFlags.canRedo, click: () => webContents.redo() }
+      ])
+      sections.push([
+        { label: 'Recortar', accelerator: 'CommandOrControl+X', enabled: editFlags.canCut, click: () => webContents.cut() },
+        { label: 'Copiar', accelerator: 'CommandOrControl+C', enabled: editFlags.canCopy, click: () => webContents.copy() },
+        // Sempre habilitado: com imagem/arquivo na área de transferência o
+        // Chromium pode não sinalizar canPaste, mas o WhatsApp aceita a colagem.
+        { label: 'Colar', accelerator: 'CommandOrControl+V', click: () => webContents.paste() },
+        { label: 'Selecionar tudo', accelerator: 'CommandOrControl+A', click: () => webContents.selectAll() }
+      ])
+    } else if (params.selectionText.trim()) {
+      sections.push([{ label: 'Copiar', accelerator: 'CommandOrControl+C', click: () => webContents.copy() }])
+    }
+
+    if (params.linkURL && !params.linkURL.startsWith('blob:')) {
+      const linkURL = params.linkURL
+      sections.push([
+        { label: 'Abrir link no navegador', click: () => void openExternalSafely(linkURL) },
+        { label: 'Copiar link', click: () => clipboard.writeText(linkURL) }
+      ])
+    }
+
+    if (params.mediaType === 'image' && params.hasImageContents) {
+      sections.push(this.buildImageMenuItems(webContents, params))
+    }
+
+    return sections.flatMap((section, index) =>
+      index === 0 ? section : [{ type: 'separator' as const }, ...section]
+    )
+  }
+
+  private buildImageMenuItems(webContents: WebContents, params: ContextMenuParams): MenuItemConstructorOptions[] {
+    const imageUrl = params.srcURL
+    const suggestedFilename = getImageFilename(params.suggestedFilename, imageUrl)
+
+    return [
+      {
+        label: 'Copiar imagem',
+        click: () => webContents.copyImageAt(params.x, params.y)
+      },
+      {
+        label: 'Salvar imagem como…',
+        enabled: Boolean(imageUrl),
+        click: () => {
+          const whatsappSession = webContents.session
+          let cleanupTimer: NodeJS.Timeout | undefined
+          const cleanup = () => {
+            whatsappSession.removeListener('will-download', onWillDownload)
+            if (cleanupTimer) {
+              clearTimeout(cleanupTimer)
+            }
+          }
+          const onWillDownload = (_downloadEvent: Electron.Event, item: DownloadItem, sourceWebContents: WebContents) => {
+            if (sourceWebContents !== webContents || item.getURL() !== imageUrl) {
+              return
+            }
+
+            const filename = /\.(avif|bmp|gif|jpe?g|png|tiff?|webp)$/i.test(suggestedFilename)
+              ? suggestedFilename
+              : `${suggestedFilename}.${getImageExtension(item.getMimeType())}`
+
+            item.setSaveDialogOptions({
+              title: 'Salvar imagem',
+              defaultPath: filename,
+              filters: [
+                {
+                  name: 'Imagens',
+                  extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'avif', 'tif', 'tiff']
+                },
+                { name: 'Todos os arquivos', extensions: ['*'] }
+              ]
+            })
+            cleanup()
+          }
+
+          whatsappSession.on('will-download', onWillDownload)
+          cleanupTimer = setTimeout(cleanup, 30_000)
+          cleanupTimer.unref()
+
+          try {
+            webContents.downloadURL(imageUrl)
+          } catch (error) {
+            cleanup()
+            logger.warn(`Não foi possível iniciar o download da imagem: ${String(error)}`)
+          }
+        }
+      }
+    ]
   }
 
   private recoverFromCrash(): void {
@@ -873,7 +931,7 @@ export class WindowManager {
 
     if (panel === 'image') {
       if (this.currentPanel !== 'image') {
-        this.boundsBeforeImage = this.mainWindow.getBounds()
+        this.boundsBeforeImage = this.captureBounds()
       }
 
       this.currentPanel = panel
@@ -898,7 +956,7 @@ export class WindowManager {
       this.mainWindow.setMinimumSize(minimum.width, minimum.height)
 
       if (this.boundsBeforeImage) {
-        this.mainWindow.setBounds(this.fitBoundsToDisplay(this.boundsBeforeImage), true)
+        this.restoreBounds(this.fitBoundsToDisplay(this.boundsBeforeImage))
       }
 
       this.boundsBeforeImage = undefined
@@ -909,7 +967,7 @@ export class WindowManager {
 
     if (panel === 'mini-chat') {
       if (this.currentPanel !== 'mini-chat') {
-        this.boundsBeforeMini = this.mainWindow.getBounds()
+        this.boundsBeforeMini = this.captureBounds()
       }
 
       this.currentPanel = panel
@@ -927,11 +985,47 @@ export class WindowManager {
     this.mainWindow.setMinimumSize(MIN_WIDTH, MIN_HEIGHT)
 
     if (wasMini && this.boundsBeforeMini) {
-      this.mainWindow.setBounds(this.fitBoundsToDisplay(this.boundsBeforeMini), true)
+      this.restoreBounds(this.fitBoundsToDisplay(this.boundsBeforeMini))
       this.updateWhatsAppBounds()
       this.boundsBeforeMini = undefined
       this.ensureVisibleOnDisplay()
     }
+  }
+
+  // Em monitor com escala fracionária (ex.: 150%) o Electron arredonda a
+  // conversão DIP <-> pixels e a janela voltava 2 px maior a cada abertura do
+  // editor de mídia. Confere o tamanho obtido e compensa a diferença uma vez.
+  private restoreBounds(target: Rectangle): void {
+    if (!this.mainWindow) {
+      return
+    }
+
+    this.lastRestoredBounds = { ...target }
+    this.mainWindow.setBounds(target)
+    const actual = this.mainWindow.getBounds()
+    const dw = actual.width - target.width
+    const dh = actual.height - target.height
+    if ((dw !== 0 || dh !== 0) && Math.abs(dw) <= 4 && Math.abs(dh) <= 4) {
+      this.mainWindow.setBounds({ ...target, width: target.width - dw, height: target.height - dh })
+    }
+  }
+
+  // Lê os bounds atuais; se diferem do último restaurado só pelo arredondamento
+  // (até 4 px), usa o restaurado, para o erro não acumular a cada ciclo.
+  private captureBounds(): Rectangle {
+    const current = this.mainWindow?.getBounds() ?? { x: 0, y: 0, width: 0, height: 0 }
+    const last = this.lastRestoredBounds
+    if (
+      last &&
+      Math.abs(current.x - last.x) <= 4 &&
+      Math.abs(current.y - last.y) <= 4 &&
+      Math.abs(current.width - last.width) <= 4 &&
+      Math.abs(current.height - last.height) <= 4
+    ) {
+      return { ...last }
+    }
+
+    return current
   }
 
   private getMinimumWindowSize(panel = this.currentPanel): { width: number; height: number } {
