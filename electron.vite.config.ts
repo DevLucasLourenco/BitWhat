@@ -19,7 +19,8 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'src/preload/preload.ts'),
-          whatsapp: resolve(__dirname, 'src/preload/whatsapp-preload.ts')
+          whatsapp: resolve(__dirname, 'src/preload/whatsapp-preload.ts'),
+          bubble: resolve(__dirname, 'src/preload/bubble-preload.ts')
         }
       }
     }
@@ -27,6 +28,14 @@ export default defineConfig({
   renderer: {
     root: 'src/renderer',
     plugins: [react()],
+    build: {
+      rollupOptions: {
+        input: {
+          index: resolve(__dirname, 'src/renderer/index.html'),
+          bubble: resolve(__dirname, 'src/renderer/bubble.html')
+        }
+      }
+    },
     resolve: {
       alias: {
         '@shared': resolve(__dirname, 'src/shared')

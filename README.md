@@ -24,7 +24,9 @@ mantém a autenticação em uma sessão local exclusiva do BitWhat.
   usuário escolha limpar a sessão.
 - Visualização de contatos ou de uma conversa específica.
 - Modo de chat padrão ou mini, com redimensionamento automático da janela.
-- Opção de manter a janela sempre no topo.
+- Opção de manter a janela sempre no topo (botão de alfinete na barra superior).
+- Balão flutuante opcional: um botão redondo sempre por cima das outras
+  janelas, no lugar que você escolher.
 - Inicialização minimizada na bandeja ou junto com o Windows.
 - Tema claro, escuro ou baseado no sistema operacional.
 - Indicador de estado da conexão no aplicativo e no ícone da bandeja.
@@ -139,8 +141,11 @@ O WhatsApp Web não usa o Chrome instalado no Windows quando roda dentro deste a
   envio); numa conversa sem nada aberto, volta aos contatos.
 - Mensagens enviadas em cinza (`#505050` no escuro, `#d4d4d4` no claro).
 - Conversas em grade: a lista de contatos vira cartões (foto, nome, hora e a
-  prévia da última mensagem embaixo), em 2 colunas na janela padrão e 3 em
-  janelas mais largas. Os cartões são as próprias linhas do WhatsApp
+  prévia da última mensagem embaixo), de 2×2 na janela padrão até 5×5 em
+  janelas grandes: as colunas crescem com a largura (cartões de ~170 px, até
+  5) e as linhas visíveis com a altura (cartões de pelo menos ~130 px). Para caber mais linhas, a
+  lista usa zoom e o conteúdo dos cartões o zoom inverso, então texto e fotos
+  ficam no tamanho normal. Os cartões são as próprias linhas do WhatsApp
   reposicionadas (`whatsapp-chat-grid.ts`), então clique, selos, menu de
   contexto e a rolagem sob demanda continuam funcionando. Na busca, que mistura
   itens de alturas diferentes, a lista normal volta automaticamente.
@@ -159,7 +164,13 @@ O WhatsApp Web não usa o Chrome instalado no Windows quando roda dentro deste a
 - Ao abrir uma conversa, ela começa no fim (última mensagem). A rolagem é
   mantida no fim enquanto o layout se ajusta (até 4 s) e para assim que o
   usuário rola por conta própria.
-- Painel da engrenagem compacto: formato do chat, tema, `Sempre no topo`,
+- Balão flutuante (`Balão flutuante` nas configurações): botão redondo com o
+  logo, sempre por cima das outras janelas e fora da barra de tarefas. Arraste
+  para onde quiser (a posição fica salva e é ajustada se o monitor mudar);
+  clique para abrir/ocultar o BitWhat; botão direito para `Abrir`/`Ocultar`,
+  `Desativar balão` e `Sair`. Mostra o número de conversas não lidas, lido do
+  título da página do WhatsApp (só o número).
+- Painel da engrenagem compacto: formato do chat, tema, `Balão flutuante`,
   `Silenciar notificações`, `Iniciar na bandeja`, `Iniciar com Windows`,
   `Limpar sessão`, `Ocultar` e `Sair`.
 - Formato do chat: `Padrão` ou `Mini`.
@@ -184,13 +195,17 @@ src/
     services/
       window-manager.ts
       tray-manager.ts
+      bubble-manager.ts
       session-manager.ts
       settings-store.ts
       navigation-guard.ts
   preload/
     preload.ts
+    whatsapp-preload.ts
+    bubble-preload.ts
   renderer/
     index.html
+    bubble.html
     src/
       App.tsx
       main.tsx

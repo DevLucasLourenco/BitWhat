@@ -9,22 +9,39 @@
 // seguem valendo. Nada é copiado: o cartão é a própria linha do WhatsApp, só
 // reposicionada e reestilizada (clique, menu de contexto e selos continuam).
 //
-// Colunas: pela largura da lista (cartões com ~170 px), de 2 a 3.
+// Tamanho até 5×5: as colunas vêm da largura (cartões de ~170 px, 2 a 5) e a
+// altura do cartão é a que faz caber tantas faixas quanto colunas (N×N), sem
+// ficar abaixo de ~130 px; janela larga e baixa mostra menos faixas. Para
+// caber mais faixas, a lista recebe CSS zoom < 1: as faixas (C * alturaDaLinha)
+// ficam mais baixas na tela e a lista do WhatsApp, que mede a área pela altura
+// interna (clientHeight), desenha proporcionalmente mais conversas, mantendo a
+// coerência da rolagem. O conteúdo de cada cartão leva o zoom inverso, então
+// texto e foto continuam no tamanho normal.
 //
 // Teclado: com o foco na grade, as setas andam como numa grade (← → uma
 // conversa, ↑ ↓ uma faixa), rolando a lista até o cartão. O foco vai para o
 // item da conversa ([aria-selected]), onde o Enter do próprio WhatsApp a abre.
 
 export const WHATSAPP_CHAT_GRID_CSS = `
+html[data-bitwhat-panel="contacts"] #pane-side[data-bitwhat-chat-grid-pane="true"] {
+  zoom: var(--bw-zoom, 1) !important;
+}
+
+/* "Arquivadas" e afins, acima da grade: tamanho normal. */
+html[data-bitwhat-panel="contacts"] #pane-side[data-bitwhat-chat-grid-pane="true"] > :not(:has([role="grid"])) {
+  zoom: calc(1 / var(--bw-zoom, 1)) !important;
+}
+
 html[data-bitwhat-panel="contacts"] #pane-side [role="grid"][data-bitwhat-chat-grid="true"] > [role="row"] {
   width: calc(100% / var(--bw-cols, 2)) !important;
   height: var(--bw-tile-h, 152px) !important;
   transform: translate(calc(var(--bw-col, 0) * 100%), var(--bw-y, 0px)) !important;
-  padding: 4px !important;
+  padding: calc(4px / var(--bw-zoom, 1)) !important;
   box-sizing: border-box !important;
 }
 
 html[data-bitwhat-panel="contacts"] [data-bitwhat-chat-grid="true"] > [role="row"] > [role="gridcell"] {
+  zoom: calc(1 / var(--bw-zoom, 1)) !important;
   height: 100% !important;
   border-radius: 14px !important;
   overflow: hidden !important;
@@ -163,13 +180,41 @@ export function createWhatsAppChatGridScript(): string {
   }
 
   const MIN_CARD_WIDTH = 170;
-  const MAX_COLUMNS = 3;
+  const MIN_CARD_HEIGHT = 130;
+  const MAX_COLUMNS = 5;
   let grid = null;
   let gridObserver = null;
   let frame = 0;
   let rowHeight = 76;
   let columns = 2;
+  let zoom = 1;
   let lastIndex = null;
+  let zoomedPane = null;
+
+  // Zoom da lista (#pane-side) só enquanto a grade está ativa.
+  const setPaneZoom = (pane, value) => {
+    if (zoomedPane && zoomedPane !== pane) {
+      zoomedPane.removeAttribute('data-bitwhat-chat-grid-pane');
+      zoomedPane.style.removeProperty('--bw-zoom');
+    }
+    zoomedPane = pane;
+    if (!pane) {
+      zoom = 1;
+      return;
+    }
+    if (value === null) {
+      zoom = 1;
+      pane.removeAttribute('data-bitwhat-chat-grid-pane');
+      pane.style.removeProperty('--bw-zoom');
+      return;
+    }
+    if (pane.getAttribute('data-bitwhat-chat-grid-pane') !== 'true') {
+      pane.setAttribute('data-bitwhat-chat-grid-pane', 'true');
+    }
+    if (pane.style.getPropertyValue('--bw-zoom') !== value) {
+      pane.style.setProperty('--bw-zoom', value);
+    }
+  };
 
   const parseY = (row) => {
     const match = /translateY\\((-?[\\d.]+)px\\)/.exec(row.style.transform || '');
@@ -187,6 +232,7 @@ export function createWhatsAppChatGridScript(): string {
       grid = null;
     }
     if (!active || !(current instanceof HTMLElement)) {
+      setPaneZoom(null, null);
       return;
     }
     if (grid !== current) {
@@ -209,22 +255,37 @@ export function createWhatsAppChatGridScript(): string {
     if (grid.getAttribute('data-bitwhat-chat-grid') !== mode) {
       grid.setAttribute('data-bitwhat-chat-grid', mode);
     }
+    const pane = grid.closest('#pane-side');
     if (!uniform) {
+      setPaneZoom(pane, null);
       return;
     }
 
     rowHeight = parseFloat(rows[0].style.height) || 76;
+    // Medidas na tela (getBoundingClientRect já considera o zoom).
     const width = grid.getBoundingClientRect().width || 0;
+    const header = pane ? Array.from(pane.children).filter((child) => !child.contains(grid)) : [];
+    const headerHeight = header.reduce((sum, child) => sum + child.getBoundingClientRect().height, 0);
+    const height = Math.max(0, (pane ? pane.getBoundingClientRect().height : 0) - headerHeight);
     columns = Math.max(2, Math.min(MAX_COLUMNS, Math.floor(width / MIN_CARD_WIDTH) || 2));
+    // Altura do cartão na tela: N faixas cabem na lista, com mínimo legível
+    // (nunca acima da altura natural C * alturaDaLinha, o visual do 2×2 padrão).
+    const tileOnScreen = Math.min(rowHeight * columns, Math.max(MIN_CARD_HEIGHT, height / columns));
+    zoom = Math.round((tileOnScreen / (rowHeight * columns)) * 1000) / 1000 || 1;
+    setPaneZoom(pane, String(zoom));
+
     const setVar = (element, name, value) => {
       if (element.style.getPropertyValue(name) !== value) {
         element.style.setProperty(name, value);
       }
     };
+    // Linhas de prévia que cabem abaixo da foto e do nome (~95 px fixos).
+    const previewLines = Math.max(1, Math.min(5, Math.floor((tileOnScreen - 95) / 18.2)));
+    const avatarScale = Math.max(1, Math.min(1.45, tileOnScreen / 150));
     setVar(grid, '--bw-cols', String(columns));
     setVar(grid, '--bw-tile-h', rowHeight * columns + 'px');
-    setVar(grid, '--bw-preview-lines', String(columns === 3 ? 5 : 3));
-    setVar(grid, '--bw-avatar-scale', columns === 3 ? '1.45' : '1');
+    setVar(grid, '--bw-preview-lines', String(previewLines));
+    setVar(grid, '--bw-avatar-scale', avatarScale.toFixed(2));
 
     rows.forEach((row) => {
       gridObserver.observe(row, { attributes: true, attributeFilter: ['style'] });
@@ -283,14 +344,15 @@ export function createWhatsAppChatGridScript(): string {
     if (!pane) {
       return;
     }
+    // Rolagem e cartões em px internos da lista (com zoom); retângulos na tela.
     const tileHeight = rowHeight * columns;
     const paneTop = pane.getBoundingClientRect().top;
     // Origem dos cartões no conteúdo rolável, medida num cartão já desenhado
     // (a lista do WhatsApp tem um pequeno recuo além do topo da grade).
     const sample = listRows().find((row) => row.style.getPropertyValue('--bw-y'));
     const origin = sample
-      ? sample.getBoundingClientRect().top - paneTop + pane.scrollTop - parseFloat(sample.style.getPropertyValue('--bw-y'))
-      : grid.getBoundingClientRect().top - paneTop + pane.scrollTop;
+      ? (sample.getBoundingClientRect().top - paneTop) / zoom + pane.scrollTop - parseFloat(sample.style.getPropertyValue('--bw-y'))
+      : (grid.getBoundingClientRect().top - paneTop) / zoom + pane.scrollTop;
     const top = origin + Math.floor(index / columns) * tileHeight;
     const bottom = top + tileHeight;
     if (top < pane.scrollTop) {

@@ -25,6 +25,9 @@ extraResources:
 
 asar: true
 
+# Ícone e versão no BitWhat.exe (ver scripts/after-pack.mjs).
+afterPack: ./scripts/after-pack.mjs
+
 win:
   icon: build/icon.ico
   signAndEditExecutable: false
