@@ -19,6 +19,7 @@ import {
   WHATSAPP_BROWSER_USER_AGENT,
   WHATSAPP_URL,
   WhatsAppPanelMode,
+  WhatsAppHealth,
   WhatsAppState,
   WhatsAppStatus
 } from '../../shared/types'
@@ -45,6 +46,7 @@ import {
 import { createWhatsAppLoginScreenScript, WHATSAPP_LOGIN_CSS } from './whatsapp-login-screen'
 import { createWhatsAppChatGridScript, WHATSAPP_CHAT_GRID_CSS } from './whatsapp-chat-grid'
 import { createWhatsAppDownloadPromoScript, WHATSAPP_DOWNLOAD_PROMO_CSS } from './whatsapp-download-promo'
+import { WhatsAppHealthMonitor } from './whatsapp-health'
 
 const MIN_WIDTH = 360
 const MIN_HEIGHT = 560
@@ -161,6 +163,10 @@ export class WindowManager {
   private stateProbeTimer?: NodeJS.Timeout | undefined
   private crashTimes: number[] = []
   private lastBlurAt = 0
+  private readonly healthMonitor = new WhatsAppHealthMonitor(
+    () => this.whatsappView?.webContents,
+    (health) => this.mainWindow?.webContents.send(IPC.healthChanged, health)
+  )
   private unresponsiveTimer?: NodeJS.Timeout | undefined
   private loadStartedAt = Date.now()
 
@@ -237,6 +243,10 @@ export class WindowManager {
 
   getStatus(): WhatsAppStatus {
     return { ...this.status }
+  }
+
+  getHealth(): WhatsAppHealth {
+    return this.healthMonitor.getHealth()
   }
 
   show(): void {
@@ -419,6 +429,7 @@ export class WindowManager {
         this.resizeRafId = undefined
       }
       this.stopPeriodicGc()
+      this.healthMonitor.dispose()
       if (this.stateProbeTimer) {
         clearInterval(this.stateProbeTimer)
         this.stateProbeTimer = undefined
@@ -806,6 +817,7 @@ export class WindowManager {
     this.mainWindow?.webContents.send(IPC.statusChanged, status)
     this.trayManager?.updateStatus(status.state)
     this.updateStateProbe()
+    this.healthMonitor.setActive(status.state === 'ready')
   }
 
   private updateStateProbe(): void {

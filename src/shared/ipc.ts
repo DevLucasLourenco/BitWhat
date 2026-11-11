@@ -10,6 +10,8 @@ export const IPC = {
   quit: 'app:quit',
   openExternal: 'app:open-external',
   statusChanged: 'whatsapp:status-changed',
+  getHealth: 'whatsapp:get-health',
+  healthChanged: 'whatsapp:health-changed',
   preferencesChanged: 'app:preferences-changed',
   updateReady: 'app:update-ready',
   installUpdate: 'app:install-update',
