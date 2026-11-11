@@ -1,6 +1,6 @@
 {
   "name": "bitwhat",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "description": "Cliente desktop local para WhatsApp Web com tray, Electron, React, TypeScript e Vite.",
   "productName": "BitWhat",
   "main": "./out/main/index.js",

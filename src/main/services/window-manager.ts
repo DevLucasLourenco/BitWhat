@@ -48,6 +48,8 @@ import { createWhatsAppDownloadPromoScript, WHATSAPP_DOWNLOAD_PROMO_CSS } from '
 
 const MIN_WIDTH = 360
 const MIN_HEIGHT = 560
+// Janela que perdeu o foco há menos que isto ainda conta como ativa ao alternar.
+const TOGGLE_BLUR_GRACE_MS = 600
 // Tamanho com que a janela sempre abre. Pode ser redimensionada durante o uso,
 // mas a próxima abertura volta a este tamanho (a posição salva é mantida).
 const DEFAULT_PANEL_WIDTH = 380
@@ -158,6 +160,7 @@ export class WindowManager {
   private disposeThemeListener?: (() => void) | undefined
   private stateProbeTimer?: NodeJS.Timeout | undefined
   private crashTimes: number[] = []
+  private lastBlurAt = 0
   private unresponsiveTimer?: NodeJS.Timeout | undefined
   private loadStartedAt = Date.now()
 
@@ -243,6 +246,9 @@ export class WindowManager {
 
     this.setBackgroundThrottling(false)
     this.ensureVisibleOnDisplay()
+    if (this.mainWindow.isMinimized()) {
+      this.mainWindow.restore()
+    }
     this.mainWindow.show()
     // Traz para a frente mesmo quando o Windows nega o foco (ex.: aberto pelo
     // balão flutuante, que não recebe foco).
@@ -264,7 +270,10 @@ export class WindowManager {
       return
     }
 
-    if (this.mainWindow.isVisible() && this.mainWindow.isFocused()) {
+    // Clicar no balão ou no ícone da bandeja pode tirar o foco da janela um
+    // instante antes deste clique chegar; foco perdido há pouco conta como ativa.
+    const active = this.mainWindow.isFocused() || Date.now() - this.lastBlurAt < TOGGLE_BLUR_GRACE_MS
+    if (this.mainWindow.isVisible() && !this.mainWindow.isMinimized() && active) {
       this.hide()
       return
     }
@@ -399,6 +408,10 @@ export class WindowManager {
     })
 
     this.mainWindow.on('move', () => this.scheduleBoundsSave())
+
+    this.mainWindow.on('blur', () => {
+      this.lastBlurAt = Date.now()
+    })
 
     this.mainWindow.on('closed', () => {
       if (this.resizeRafId !== undefined) {
