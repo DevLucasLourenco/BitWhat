@@ -1,4 +1,4 @@
-import type { AppPreferences, WhatsAppStatus } from './types'
+import type { AppPreferences, WhatsAppHealth, WhatsAppStatus } from './types'
 
 export interface UpdateInfo {
   version: string
@@ -16,6 +16,8 @@ export interface BitWhatApi {
   quit: () => Promise<void>
   openExternal: (url: string) => Promise<void>
   onStatusChanged: (callback: (status: WhatsAppStatus) => void) => () => void
+  getHealth: () => Promise<WhatsAppHealth>
+  onHealthChanged: (callback: (health: WhatsAppHealth) => void) => () => void
   onPreferencesChanged: (callback: (preferences: AppPreferences) => void) => () => void
   onUpdateReady: (callback: (info: UpdateInfo) => void) => () => void
   installUpdate: () => Promise<void>

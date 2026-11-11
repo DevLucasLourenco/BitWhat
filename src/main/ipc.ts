@@ -15,6 +15,7 @@ interface IpcDependencies {
 
 export function registerIpc({ windowManager, sessionManager, settingsStore }: IpcDependencies): void {
   ipcMain.handle(IPC.getStatus, () => windowManager.getStatus())
+  ipcMain.handle(IPC.getHealth, () => windowManager.getHealth())
   ipcMain.handle(IPC.getPreferences, () => settingsStore.getPreferences())
 
   ipcMain.handle(IPC.setPreferences, async (_event, preferences: Partial<AppPreferences>) => {

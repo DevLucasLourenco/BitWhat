@@ -21,6 +21,7 @@ import {
   ChatFormat,
   DEFAULT_PREFERENCES,
   ThemePreference,
+  WhatsAppHealth,
   WhatsAppStatus
 } from '../../shared/types'
 import type { UpdateInfo } from '../../shared/api'
@@ -49,6 +50,7 @@ export function App(): JSX.Element {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [busyAction, setBusyAction] = useState<'reload' | 'clear' | null>(null)
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null)
+  const [health, setHealth] = useState<WhatsAppHealth>({ ok: true, issues: [] })
 
   const statusTone = useMemo(() => {
     if (status.state === 'ready') return 'ready'
@@ -60,15 +62,18 @@ export function App(): JSX.Element {
   useEffect(() => {
     void window.bitWhat.getStatus().then(setStatus)
     void window.bitWhat.getPreferences().then(setPreferencesState)
+    void window.bitWhat.getHealth().then(setHealth)
 
     const offStatus = window.bitWhat.onStatusChanged(setStatus)
     const offPreferences = window.bitWhat.onPreferencesChanged(setPreferencesState)
     const offUpdateReady = window.bitWhat.onUpdateReady(setUpdateInfo)
+    const offHealth = window.bitWhat.onHealthChanged(setHealth)
 
     return () => {
       offStatus()
       offPreferences()
       offUpdateReady()
+      offHealth()
     }
   }, [])
 
@@ -202,11 +207,12 @@ export function App(): JSX.Element {
             <button
               className={settingsOpen ? 'icon-button active' : 'icon-button'}
               type="button"
-              title="Configurações"
-              aria-label="Configurações"
+              title={health.ok ? 'Configurações' : 'Configurações — o WhatsApp mudou; veja o aviso'}
+              aria-label={health.ok ? 'Configurações' : 'Configurações (há um aviso)'}
               onClick={() => setSettingsOpen((value) => !value)}
             >
               <Settings size={17} />
+              {!health.ok && <span className="health-dot" aria-hidden="true" />}
             </button>
           </nav>
         </header>
@@ -224,6 +230,17 @@ export function App(): JSX.Element {
 
         {settingsOpen && (
           <section className="settings-panel" aria-label="Configurações">
+            {!health.ok && (
+              <div className="health-notice" role="status">
+                <TriangleAlert size={14} />
+                <p>
+                  O WhatsApp Web mudou e algumas funções do BitWhat podem não funcionar:{' '}
+                  <strong>{health.issues.map((issue) => issue.feature).join(', ')}</strong>. Tente Recarregar; se
+                  continuar, aguarde uma atualização do BitWhat.
+                </p>
+              </div>
+            )}
+
             <div className="settings-row">
               <span className="settings-label">Chat</span>
               <SegmentedControl

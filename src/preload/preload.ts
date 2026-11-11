@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { IpcRendererEvent } from 'electron'
 import type { BitWhatApi, UpdateInfo } from '../shared/api'
 import { IPC } from '../shared/ipc'
-import type { AppPreferences, WhatsAppStatus } from '../shared/types'
+import type { AppPreferences, WhatsAppHealth, WhatsAppStatus } from '../shared/types'
 
 const api: BitWhatApi = {
   getStatus: () => ipcRenderer.invoke(IPC.getStatus),
@@ -19,6 +19,12 @@ const api: BitWhatApi = {
     const listener = (_event: IpcRendererEvent, status: WhatsAppStatus): void => callback(status)
     ipcRenderer.on(IPC.statusChanged, listener)
     return () => ipcRenderer.removeListener(IPC.statusChanged, listener)
+  },
+  getHealth: () => ipcRenderer.invoke(IPC.getHealth),
+  onHealthChanged: (callback: (health: WhatsAppHealth) => void) => {
+    const listener = (_event: IpcRendererEvent, health: WhatsAppHealth): void => callback(health)
+    ipcRenderer.on(IPC.healthChanged, listener)
+    return () => ipcRenderer.removeListener(IPC.healthChanged, listener)
   },
   onPreferencesChanged: (callback: (preferences: AppPreferences) => void) => {
     const listener = (_event: IpcRendererEvent, preferences: AppPreferences): void => callback(preferences)

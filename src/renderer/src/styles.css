@@ -499,3 +499,42 @@ button:disabled {
   color: var(--surface-strong);
 }
 
+
+/* Autodiagnóstico: ponto discreto na engrenagem e aviso no painel. */
+.icon-button {
+  position: relative;
+}
+
+.health-dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--warning);
+  box-shadow: 0 0 0 2px var(--surface-strong);
+  pointer-events: none;
+}
+
+.health-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--warning) 40%, var(--border));
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.health-notice svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.health-notice p {
+  margin: 0;
+}

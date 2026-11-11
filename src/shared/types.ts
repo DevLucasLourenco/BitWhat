@@ -24,6 +24,19 @@ export interface WhatsAppStatus {
   updatedAt: string
 }
 
+// Autodiagnóstico da página do WhatsApp (ver main/services/whatsapp-health.ts).
+export interface WhatsAppHealthIssue {
+  id: string
+  // Função do BitWhat afetada, em texto para o usuário.
+  feature: string
+}
+
+export interface WhatsAppHealth {
+  ok: boolean
+  issues: WhatsAppHealthIssue[]
+  checkedAt?: string | undefined
+}
+
 export type ThemePreference = 'system' | 'light' | 'dark'
 export type WhatsAppPanel = 'contacts' | 'chat'
 export type ChatFormat = 'standard' | 'mini'
