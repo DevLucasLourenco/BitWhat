@@ -92,6 +92,28 @@ npx electron-builder --win dir
 Nesse caso, o executável fica em `dist/win-unpacked/BitWhat.exe`. A pasta
 `dist/win-unpacked/` deve ser mantida completa para que o executável funcione.
 
+## Publicar uma versão (atualização automática)
+
+O BitWhat instalado procura atualizações nas
+[Releases do GitHub](https://github.com/DevLucasLourenco/BitWhat/releases)
+5 s depois de abrir e a cada 6 h. Quando encontra uma versão nova, baixa em
+segundo plano, avisa (notificação do Windows e faixa no topo) e instala ao sair
+ou pelo botão `Reiniciar agora`.
+
+A publicação roda nesta máquina, sem GitHub Actions:
+
+```bash
+npm version patch --no-git-tag-version   # ou minor / major
+git commit -am "chore: release X.Y.Z" && git push
+npm run release
+```
+
+`npm run release` (`scripts/release.mjs`) confere que o `master` está limpo e
+igual ao `origin/master` e que a versão ainda não foi publicada. Depois gera o
+instalador e cria a Release `vX.Y.Z` com `BitWhat-X.Y.Z-Setup.exe`, o
+`.blockmap` (download só das partes alteradas) e o `latest.yml` (lido pelo app).
+O token vem de `GH_TOKEN` ou do login do GitHub CLI (`gh auth login`).
+
 ## Limpar sessão/logout
 
 Use uma das opções:
@@ -121,6 +143,13 @@ O WhatsApp Web não usa o Chrome instalado no Windows quando roda dentro deste a
   WhatsApp fica centralizado num card (`whatsapp-login-screen.ts`). O link
   `Entrar com número de telefone` abre o fluxo do próprio WhatsApp. A camada
   some ao concluir o login.
+- Autodiagnóstico: com o WhatsApp carregado, o app confere a cada 20 s se os
+  pontos da página dos quais depende (lista de conversas, grade, conversa
+  aberta, campo de digitação) continuam existindo (`whatsapp-health.ts`). Só a
+  estrutura é verificada, nunca o conteúdo. Se um ponto some por 3 verificações
+  seguidas, o log registra e a engrenagem ganha um ponto amarelo; o painel de
+  configurações explica quais funções podem falhar. O aviso some sozinho quando
+  a página volta ao esperado.
 - Recuperação automática: se o processo do WhatsApp cair (tela azul-escura sem
   resposta), o app recarrega sozinho; se a página travar por 30 s, o processo
   é reiniciado. Após 3 quedas em 10 minutos, mostra o aviso e o botão
@@ -196,6 +225,8 @@ src/
       window-manager.ts
       tray-manager.ts
       bubble-manager.ts
+      whatsapp-health.ts
+      auto-updater.ts
       session-manager.ts
       settings-store.ts
       navigation-guard.ts

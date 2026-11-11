@@ -1,6 +1,6 @@
 {
   "name": "bitwhat",
-  "version": "0.1.18",
+  "version": "0.1.19",
   "description": "Cliente desktop local para WhatsApp Web com tray, Electron, React, TypeScript e Vite.",
   "productName": "BitWhat",
   "main": "./out/main/index.js",
@@ -13,7 +13,8 @@
   "scripts": {
     "dev": "npm run icons && electron-vite dev",
     "build": "npm run icons && npm run typecheck && electron-vite build",
-    "build:win": "npm run build && electron-builder --win nsis",
+    "build:win": "npm run build && electron-builder --win nsis --publish never",
+    "release": "node scripts/release.mjs",
     "preview": "npm run build && electron-vite preview",
     "typecheck": "tsc --noEmit",
     "icons": "node scripts/generate-icons.mjs",
