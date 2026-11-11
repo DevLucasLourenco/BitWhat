@@ -1,8 +1,11 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, Notification } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { IPC } from '../../shared/ipc'
 import { logger } from './logger'
 
+// Atualizações vêm das Releases do GitHub (publicadas com `npm run release`).
+// Checa ao abrir o app e a cada 6 h; baixa em segundo plano e instala ao sair
+// ou pelo botão "Reiniciar agora".
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000
 const INITIAL_DELAY_MS = 5_000
 
@@ -36,18 +39,32 @@ export function setupAutoUpdater(mainWindow: BrowserWindow): void {
   autoUpdater.on('update-downloaded', (info) => {
     logger.info(`Auto-updater: update v${info.version} baixado`)
     mainWindow.webContents.send(IPC.updateReady, { version: info.version })
+    if (Notification.isSupported()) {
+      const notification = new Notification({
+        title: `BitWhat ${info.version} pronto para instalar`,
+        body: 'A atualização será instalada ao sair do BitWhat. Clique para abrir e reiniciar agora.',
+        silent: true
+      })
+      notification.on('click', () => {
+        mainWindow.show()
+        mainWindow.focus()
+      })
+      notification.show()
+    }
   })
 
   autoUpdater.on('error', (error) => {
     logger.error('Auto-updater: erro', error)
   })
 
-  setTimeout(() => {
-    void autoUpdater.checkForUpdatesAndNotify()
+  // Erros (ex.: offline) chegam pelo evento 'error'; o catch só evita rejeição solta.
+  const check = (): void => {
+    autoUpdater.checkForUpdates().catch(() => undefined)
+  }
 
-    checkInterval = setInterval(() => {
-      void autoUpdater.checkForUpdatesAndNotify()
-    }, CHECK_INTERVAL_MS)
+  setTimeout(() => {
+    check()
+    checkInterval = setInterval(check, CHECK_INTERVAL_MS)
   }, INITIAL_DELAY_MS)
 
   ipcMain.handle(IPC.installUpdate, () => {
