@@ -138,7 +138,24 @@ O WhatsApp Web não usa o Chrome instalado no Windows quando roda dentro deste a
 - `Esc`: fecha o que estiver aberto (menu, diálogo, painel de emojis, editor de
   envio); numa conversa sem nada aberto, volta aos contatos.
 - Mensagens enviadas em cinza (`#505050` no escuro, `#d4d4d4` no claro).
+- Conversas em grade: a lista de contatos vira cartões (foto, nome, hora e a
+  prévia da última mensagem embaixo), em 2 colunas na janela padrão e 3 em
+  janelas mais largas. Os cartões são as próprias linhas do WhatsApp
+  reposicionadas (`whatsapp-chat-grid.ts`), então clique, selos, menu de
+  contexto e a rolagem sob demanda continuam funcionando. Na busca, que mistura
+  itens de alturas diferentes, a lista normal volta automaticamente.
+- Teclado na grade: setas `←` `→` andam uma conversa e `↑` `↓` uma linha de
+  cartões, rolando a lista até o cartão (contorno verde); `Enter` abre a
+  conversa e `Esc` volta à grade, retomando da última conversa visitada.
+- A tela só passa para o chat quando uma conversa de fato abre; se o chat for
+  pedido sem conversa, o WhatsApp não aparece "cru" (barra lateral, lista
+  cortada) e o app volta aos contatos.
+- Aviso "Baixar o WhatsApp para Windows" / "Use o app para acessar o histórico"
+  escondido sempre que o WhatsApp o insere (`whatsapp-download-promo.ts`); só o
+  bloco do aviso é ocultado.
 - Navegação automática: clicar em um contato abre o chat; no chat, o botão de sidebar volta aos contatos.
+- Ao entrar numa conversa (clique ou `Enter`), o campo de mensagem já fica
+  selecionado para digitar, com o cursor no fim de um rascunho existente.
 - Ao abrir uma conversa, ela começa no fim (última mensagem). A rolagem é
   mantida no fim enquanto o layout se ajusta (até 4 s) e para assim que o
   usuário rola por conta própria.

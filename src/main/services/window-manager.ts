@@ -42,6 +42,8 @@ import {
   WHATSAPP_THEME_CSS
 } from './whatsapp-panel-mode'
 import { createWhatsAppLoginScreenScript, WHATSAPP_LOGIN_CSS } from './whatsapp-login-screen'
+import { createWhatsAppChatGridScript, WHATSAPP_CHAT_GRID_CSS } from './whatsapp-chat-grid'
+import { createWhatsAppDownloadPromoScript, WHATSAPP_DOWNLOAD_PROMO_CSS } from './whatsapp-download-promo'
 
 const MIN_WIDTH = 360
 const MIN_HEIGHT = 560
@@ -138,6 +140,8 @@ export class WindowManager {
   private panelCssKey?: string | undefined
   private themeCssKey?: string | undefined
   private loginCssKey?: string | undefined
+  private chatGridCssKey?: string | undefined
+  private downloadPromoCssKey?: string | undefined
   private isQuitting = false
   private allowProgrammaticEscape = false
   private currentPanel: WhatsAppPanelMode = resolveWhatsAppPanelMode(DEFAULT_PREFERENCES)
@@ -433,6 +437,8 @@ export class WindowManager {
       this.panelCssKey = undefined
       this.themeCssKey = undefined
       this.loginCssKey = undefined
+      this.chatGridCssKey = undefined
+      this.downloadPromoCssKey = undefined
       this.setStatus(this.createStatus('loading', 'Carregando WhatsApp Web'))
 
       if (this.mainWindow?.isVisible()) {
@@ -447,6 +453,8 @@ export class WindowManager {
       }
       void this.applyWhatsAppTheme()
       void this.applyWhatsAppLoginScreen()
+      void this.applyWhatsAppChatGrid()
+      void this.applyWhatsAppDownloadPromoBlock()
       void this.applyWhatsAppPanelMode()
       this.detectWhatsAppState()
     })
@@ -458,6 +466,8 @@ export class WindowManager {
       }
       void this.applyWhatsAppTheme()
       void this.applyWhatsAppLoginScreen()
+      void this.applyWhatsAppChatGrid()
+      void this.applyWhatsAppDownloadPromoBlock()
       void this.applyWhatsAppPanelMode()
       this.detectWhatsAppState()
     })
@@ -818,6 +828,40 @@ export class WindowManager {
       await webContents.executeJavaScript(createApplyWhatsAppThemeScript(theme), true)
     } catch (error) {
       logger.warn('Falha ao aplicar tema do WhatsApp', error)
+    }
+  }
+
+  private async applyWhatsAppDownloadPromoBlock(): Promise<void> {
+    const webContents = this.whatsappView?.webContents
+    if (!webContents || webContents.isDestroyed()) {
+      return
+    }
+
+    try {
+      if (!this.downloadPromoCssKey) {
+        this.downloadPromoCssKey = await webContents.insertCSS(WHATSAPP_DOWNLOAD_PROMO_CSS)
+      }
+
+      await webContents.executeJavaScript(createWhatsAppDownloadPromoScript(), true)
+    } catch (error) {
+      logger.warn('Falha ao aplicar o bloqueio do aviso de download', error)
+    }
+  }
+
+  private async applyWhatsAppChatGrid(): Promise<void> {
+    const webContents = this.whatsappView?.webContents
+    if (!webContents || webContents.isDestroyed()) {
+      return
+    }
+
+    try {
+      if (!this.chatGridCssKey) {
+        this.chatGridCssKey = await webContents.insertCSS(WHATSAPP_CHAT_GRID_CSS)
+      }
+
+      await webContents.executeJavaScript(createWhatsAppChatGridScript(), true)
+    } catch (error) {
+      logger.warn('Falha ao aplicar a grade de conversas', error)
     }
   }
 

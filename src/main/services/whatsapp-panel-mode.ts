@@ -1,6 +1,13 @@
 import type { ThemePreference, WhatsAppPanelMode } from '../../shared/types'
 
 export const WHATSAPP_PANEL_CSS = `
+/* Chat pedido e ainda sem conversa: não mostra o WhatsApp cru (barra lateral,
+   lista cortada) enquanto espera a conversa ou a volta aos contatos. */
+html[data-bitwhat-panel-pending="chat"] #app:has(#pane-side),
+html[data-bitwhat-panel-pending="mini-chat"] #app:has(#pane-side) {
+  visibility: hidden !important;
+}
+
 html[data-bitwhat-panel="contacts"],
 html[data-bitwhat-panel="chat"],
 html[data-bitwhat-panel="mini-chat"],
@@ -775,6 +782,9 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     }
     window.clearTimeout(state.timer);
     window.clearTimeout(state.imageCloseTimer);
+    window.clearTimeout(state.chatFallbackTimer);
+    window.clearTimeout(state.chatOpenTimer);
+    window.clearTimeout(state.composerFocusTimer);
     state.stopBottomPin?.();
 
     restoreCollection(state.pruned);
@@ -878,6 +888,9 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     onPaste: undefined,
     timer: undefined,
     imageCloseTimer: undefined,
+    chatFallbackTimer: 0,
+    chatOpenTimer: 0,
+    composerFocusTimer: 0,
     imagePreviewSeen: false,
     lastDiagnostic: '',
     reportedPanel: requestedPanel,
@@ -1894,42 +1907,11 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     return true;
   };
 
-  const removeWindowsDownloadFooter = (scope) => {
-    if (!isElement(scope)) {
-      return;
-    }
-
-    const textPattern = /baixar\\s+o\\s+whatsapp\\s+para\\s+windows|download\\s+whatsapp\\s+for\\s+windows|get\\s+whatsapp\\s+for\\s+windows|whatsapp\\s+para\\s+windows/i;
-    const candidates = Array.from(scope.querySelectorAll('footer, a, [role="button"], span, div')).filter(isElement);
-
-    candidates.forEach((element) => {
-      if (element.closest('[data-id], [data-testid*="msg" i], [data-testid*="message" i], [role="row"]')) {
-        return;
-      }
-
-      const text = (element.textContent || '').replace(/\\s+/g, ' ').trim();
-      const aria = element.getAttribute('aria-label') || '';
-      const title = element.getAttribute('title') || '';
-
-      if (!textPattern.test([text, aria, title].join(' '))) {
-        return;
-      }
-
-      const removable =
-        element.closest('footer') ||
-        element.closest('[data-testid*="download" i], [aria-label*="download" i], [aria-label*="baixar" i]') ||
-        element;
-
-      if (removable instanceof HTMLElement) {
-        if (isChatComposerPart(removable) || removable.querySelector(chatTextboxSelector)) {
-          return;
-        }
-
-        removable.setAttribute('data-bitwhat-download-footer', 'true');
-        detachNode(removable, state.pruned);
-      }
-    });
-  };
+  // O aviso "Baixar o WhatsApp para Windows" agora é tratado por
+  // whatsapp-download-promo.ts (observador permanente que só esconde o bloco do
+  // aviso). A versão antiga testava qualquer div com a frase no texto e podia
+  // remover contêineres grandes; fica como no-op para manter as chamadas.
+  const removeWindowsDownloadFooter = () => {};
 
   const enforceExclusiveRoot = () => {
     const appRoot = state.appRoot || getAppRoot();
@@ -2087,11 +2069,37 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     return true;
   };
 
+  // Chat pedido sem conversa aberta (botão de alternar painel, preferência
+  // salva como "chat" ao abrir o app, clique que não abriu conversa): sem isso o
+  // painel fica pendente e o WhatsApp aparece cru (barra lateral, lista cortada).
+  // Dá um tempo para a conversa surgir; se não surgir, volta para os contatos.
+  const CHAT_FALLBACK_MS = 1500;
+  const scheduleChatFallback = () => {
+    if ((requestedPanel !== 'chat' && requestedPanel !== 'mini-chat') || state.chatFallbackTimer) {
+      return;
+    }
+    state.chatFallbackTimer = window.setTimeout(() => {
+      state.chatFallbackTimer = 0;
+      if (root.getAttribute('data-bitwhat-panel-pending') !== requestedPanel || findChatPane()) {
+        return;
+      }
+      if (!findContactsPane()?.pane) {
+        // WhatsApp ainda carregando: tenta de novo depois.
+        scheduleChatFallback();
+        return;
+      }
+      publishDiagnostic('chat pedido sem conversa aberta; voltando aos contatos');
+      state.reportedPanel = undefined;
+      reportPanelChange('contacts');
+    }, CHAT_FALLBACK_MS);
+  };
+
   const mountConnectedPanel = (activePane, contactList, chatPanel) => {
     if (!isElement(activePane) || !activePane.parentNode) {
       root.removeAttribute('data-bitwhat-panel');
       root.setAttribute('data-bitwhat-panel-pending', requestedPanel);
       publishDiagnostic('aguardando painel conectado ' + requestedPanel);
+      scheduleChatFallback();
       return false;
     }
 
@@ -2205,6 +2213,7 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
       root.removeAttribute('data-bitwhat-panel');
       root.setAttribute('data-bitwhat-panel-pending', requestedPanel);
       publishDiagnostic('aguardando painel ' + requestedPanel);
+      scheduleChatFallback();
       return false;
     }
 
@@ -2288,7 +2297,54 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     );
   };
 
+  // Clique/Enter na lista só leva ao chat quando uma conversa de fato abre.
+  // Antes qualquer clique com [tabindex] na lista ("Arquivadas", foto, menu da
+  // conversa) pedia o chat sem conversa, e o WhatsApp aparecia cru.
+  const CHAT_OPEN_WAIT_MS = 2500;
+  const reportChatWhenOpen = (onChatRow) => {
+    // Conversa que já estava aberta por baixo da grade só conta se o clique
+    // foi numa conversa (aí o WhatsApp troca o conteúdo dela).
+    const alreadyOpen = Boolean(findChatPane());
+    if (alreadyOpen && !onChatRow) {
+      return;
+    }
+    window.clearTimeout(state.chatOpenTimer);
+    const startedAt = Date.now();
+    const check = () => {
+      if (requestedPanel !== 'contacts') {
+        return;
+      }
+      if (findChatPane()) {
+        reportPanelChange('chat');
+        return;
+      }
+      if (Date.now() - startedAt < CHAT_OPEN_WAIT_MS) {
+        state.chatOpenTimer = window.setTimeout(check, 100);
+      }
+    };
+    state.chatOpenTimer = window.setTimeout(check, 120);
+  };
+
+  // Enter numa conversa com foco (navegação pelas setas na grade): o WhatsApp
+  // abre a conversa, e o painel troca para o chat como no clique.
+  const onEnterInList = (event) => {
+    if (requestedPanel !== 'contacts' || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+      return;
+    }
+    const target = event.target instanceof Element ? event.target : null;
+    const contactList = state.contactList;
+    const row = target && target.closest('[role="row"]');
+    if (!row || !(contactList instanceof HTMLElement) || !contactList.contains(row)) {
+      return;
+    }
+    reportChatWhenOpen(true);
+  };
+
   const onKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      onEnterInList(event);
+      return;
+    }
     if (event.key !== 'Escape' && event.key !== 'Esc') {
       return;
     }
@@ -2366,9 +2422,7 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
       return;
     }
 
-    window.setTimeout(() => {
-      reportPanelChange('chat');
-    }, 160);
+    reportChatWhenOpen(Boolean(target.closest('[role="row"]')));
   };
 
   const onChange = (event) => {
@@ -2496,8 +2550,59 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     tick();
   };
 
+  // Ao entrar numa conversa, o campo de mensagem já fica pronto para digitar
+  // (o clique na lista deixava o foco na lista). Espera o chat ser montado e
+  // desiste se o usuário já tiver focado outro campo ou aberto um menu.
+  const focusComposerOnEntry = () => {
+    const FOCUS_MAX_MS = 3000;
+    const startedAt = Date.now();
+    const isEditable = (element) =>
+      element instanceof HTMLElement && (element.isContentEditable || element.matches('input, textarea'));
+    const tick = () => {
+      state.composerFocusTimer = 0;
+      const scope = state.chatPanel instanceof HTMLElement ? state.chatPanel : document.querySelector('#main');
+      const textbox = scope && scope.querySelector('footer [contenteditable="true"], [contenteditable="true"][role="textbox"]');
+      const box = textbox instanceof HTMLElement ? textbox.getBoundingClientRect() : null;
+      const active = document.activeElement;
+      if (textbox instanceof HTMLElement && active === textbox) {
+        return;
+      }
+      if (isEditable(active) && active !== textbox) {
+        return;
+      }
+      // Menu, diálogo ou editor de envio aberto: não rouba o foco deles.
+      const overlay =
+        findMediaEditorRoot() ||
+        Array.from(document.querySelectorAll('[role="menu"], [role="dialog"], [aria-modal="true"]')).some((element) => {
+          const rect = element.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0;
+        });
+      if (overlay) {
+        return;
+      }
+      if (textbox instanceof HTMLElement && box && box.width > 0 && box.height > 0) {
+        textbox.focus({ preventScroll: true });
+        // Rascunho existente: cursor no fim.
+        const selection = window.getSelection();
+        if (selection && textbox.isContentEditable) {
+          const range = document.createRange();
+          range.selectNodeContents(textbox);
+          range.collapse(false);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+        return;
+      }
+      if (Date.now() - startedAt < FOCUS_MAX_MS) {
+        state.composerFocusTimer = window.setTimeout(tick, 100);
+      }
+    };
+    state.composerFocusTimer = window.setTimeout(tick, 120);
+  };
+
   if ((requestedPanel === 'chat' || requestedPanel === 'mini-chat') && previousPanel !== requestedPanel) {
     startChatBottomPin();
+    focusComposerOnEntry();
   }
 
   state.onClick = onClick;
