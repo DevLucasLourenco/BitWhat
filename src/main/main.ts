@@ -6,6 +6,7 @@ import { logger } from './services/logger'
 import { SessionManager } from './services/session-manager'
 import { SettingsStore } from './services/settings-store'
 import { applyNativeTheme } from './services/theme-manager'
+import { BubbleManager } from './services/bubble-manager'
 import { TrayManager } from './services/tray-manager'
 import { WindowManager } from './services/window-manager'
 
@@ -45,6 +46,10 @@ if (!gotSingleInstanceLock) {
 
     const shouldStartHidden = process.argv.includes('--hidden') || preferences.startMinimized
     await windowManager.create(shouldStartHidden)
+
+    const bubbleManager = new BubbleManager(settingsStore, windowManager)
+    windowManager.setBubbleManager(bubbleManager)
+    bubbleManager.setEnabled(preferences.floatingBubble)
 
     const mainWindow = windowManager.getWindow()
     if (mainWindow) {

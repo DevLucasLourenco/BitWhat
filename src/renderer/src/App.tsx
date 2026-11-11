@@ -244,9 +244,9 @@ export function App(): JSX.Element {
 
             <div className="switch-grid">
               <SwitchRow
-                checked={preferences.alwaysOnTop}
-                label="Sempre no topo"
-                onChange={(alwaysOnTop) => void setPreferences({ alwaysOnTop })}
+                checked={preferences.floatingBubble}
+                label="Balão flutuante"
+                onChange={(floatingBubble) => void setPreferences({ floatingBubble })}
               />
               <SwitchRow
                 checked={preferences.muteNotifications}

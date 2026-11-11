@@ -12,7 +12,14 @@ export const IPC = {
   statusChanged: 'whatsapp:status-changed',
   preferencesChanged: 'app:preferences-changed',
   updateReady: 'app:update-ready',
-  installUpdate: 'app:install-update'
+  installUpdate: 'app:install-update',
+  // Balão flutuante (janela própria, preload próprio).
+  bubbleDragStart: 'bubble:drag-start',
+  bubbleDragMove: 'bubble:drag-move',
+  bubbleDragEnd: 'bubble:drag-end',
+  bubbleClick: 'bubble:click',
+  bubbleContextMenu: 'bubble:context-menu',
+  bubbleUnread: 'bubble:unread'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]

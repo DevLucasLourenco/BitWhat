@@ -37,6 +37,7 @@ export interface AppPreferences {
   chatFormat: ChatFormat
   theme: ThemePreference
   muteNotifications: boolean
+  floatingBubble: boolean
 }
 
 export const DEFAULT_PREFERENCES: AppPreferences = {
@@ -46,7 +47,8 @@ export const DEFAULT_PREFERENCES: AppPreferences = {
   whatsappPanel: 'contacts',
   chatFormat: 'standard',
   theme: 'dark',
-  muteNotifications: false
+  muteNotifications: false,
+  floatingBubble: false
 }
 
 export function resolveWhatsAppPanelMode(preferences: Pick<AppPreferences, 'whatsappPanel' | 'chatFormat'>): WhatsAppPanelMode {

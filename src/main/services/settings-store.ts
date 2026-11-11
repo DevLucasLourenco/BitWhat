@@ -1,5 +1,5 @@
 import { app } from 'electron'
-import type { Rectangle } from 'electron'
+import type { Point, Rectangle } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import {
@@ -12,6 +12,7 @@ interface StoredSettings {
   preferences: AppPreferences
   windowBounds?: Rectangle | undefined
   chromeHeight?: number | undefined
+  bubblePosition?: Point | undefined
 }
 
 const SETTINGS_FILE = 'settings.json'
@@ -63,6 +64,15 @@ export class SettingsStore {
     this.save()
   }
 
+  getBubblePosition(): Point | undefined {
+    return this.data.bubblePosition ? { ...this.data.bubblePosition } : undefined
+  }
+
+  setBubblePosition(position: Point): void {
+    this.data.bubblePosition = { x: Math.round(position.x), y: Math.round(position.y) }
+    this.save()
+  }
+
   private load(): StoredSettings {
     try {
       if (!fs.existsSync(this.filePath)) {
@@ -79,7 +89,8 @@ export class SettingsStore {
         chromeHeight:
           typeof parsed.chromeHeight === 'number'
             ? Math.max(MIN_CHROME_HEIGHT, Math.min(MAX_CHROME_HEIGHT, parsed.chromeHeight))
-            : undefined
+            : undefined,
+        bubblePosition: this.sanitizePoint(parsed.bubblePosition)
       }
     } catch (error) {
       logger.warn('Falha ao carregar configurações; usando padrão', error)
@@ -140,7 +151,24 @@ export class SettingsStore {
       sanitized.muteNotifications = input.muteNotifications
     }
 
+    if (typeof input.floatingBubble === 'boolean') {
+      sanitized.floatingBubble = input.floatingBubble
+    }
+
     return sanitized
+  }
+
+  private sanitizePoint(point: unknown): Point | undefined {
+    if (!point || typeof point !== 'object') {
+      return undefined
+    }
+
+    const candidate = point as Partial<Point>
+    if (typeof candidate.x !== 'number' || typeof candidate.y !== 'number' || !Number.isFinite(candidate.x) || !Number.isFinite(candidate.y)) {
+      return undefined
+    }
+
+    return { x: Math.round(candidate.x), y: Math.round(candidate.y) }
   }
 
   private sanitizeBounds(bounds: unknown): Rectangle | undefined {

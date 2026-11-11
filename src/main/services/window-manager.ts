@@ -28,6 +28,7 @@ import { attachNavigationGuard, openExternalSafely } from './navigation-guard'
 import { SessionManager } from './session-manager'
 import { SettingsStore } from './settings-store'
 import { TrayManager } from './tray-manager'
+import type { BubbleManager } from './bubble-manager'
 import { logger } from './logger'
 import {
   applyNativeTheme,
@@ -134,6 +135,7 @@ export class WindowManager {
   private readonly settingsStore: SettingsStore
   private readonly sessionManager: SessionManager
   private trayManager?: TrayManager | undefined
+  private bubbleManager?: BubbleManager | undefined
   private status: WhatsAppStatus = this.createStatus('initializing', 'Inicializando')
   private chromeHeight: number
   private saveBoundsTimer?: NodeJS.Timeout | undefined
@@ -218,6 +220,10 @@ export class WindowManager {
     this.trayManager = trayManager
   }
 
+  setBubbleManager(bubbleManager: BubbleManager): void {
+    this.bubbleManager = bubbleManager
+  }
+
   disposeGlobalShortcuts(): void {
     this.unregisterGlobalShortcuts()
   }
@@ -238,6 +244,9 @@ export class WindowManager {
     this.setBackgroundThrottling(false)
     this.ensureVisibleOnDisplay()
     this.mainWindow.show()
+    // Traz para a frente mesmo quando o Windows nega o foco (ex.: aberto pelo
+    // balão flutuante, que não recebe foco).
+    this.mainWindow.moveTop()
     this.mainWindow.focus()
   }
 
@@ -290,6 +299,7 @@ export class WindowManager {
 
     this.mainWindow.setAlwaysOnTop(preferences.alwaysOnTop, 'floating')
     this.sessionManager.setNotificationsMuted(preferences.muteNotifications)
+    this.bubbleManager?.setEnabled(preferences.floatingBubble)
     this.trayManager?.refreshMenu()
     applyNativeTheme(preferences.theme)
     this.syncBackgroundColors()
@@ -444,6 +454,13 @@ export class WindowManager {
       if (this.mainWindow?.isVisible()) {
         this.whatsappView?.webContents.setBackgroundThrottling(false)
       }
+    })
+
+    // Título do WhatsApp traz as não lidas ("(55) WhatsApp"): só o número vai
+    // para o balão flutuante.
+    webContents.on('page-title-updated', (_event, title) => {
+      const match = /^\((\d+)\)/.exec(title)
+      this.bubbleManager?.setUnread(match ? Number(match[1]) : 0)
     })
 
     webContents.on('dom-ready', () => {
