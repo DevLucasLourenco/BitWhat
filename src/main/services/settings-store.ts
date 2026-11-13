@@ -155,6 +155,12 @@ export class SettingsStore {
       sanitized.floatingBubble = input.floatingBubble
     }
 
+    for (const key of ['recentChats', 'typeToSearch', 'bubbleDock', 'onboardingDone'] as const) {
+      if (typeof input[key] === 'boolean') {
+        sanitized[key] = input[key]
+      }
+    }
+
     return sanitized
   }
 

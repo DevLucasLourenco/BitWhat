@@ -1,4 +1,5 @@
-import { app, ipcMain } from 'electron'
+import { app, ipcMain, shell } from 'electron'
+import path from 'node:path'
 import { IPC } from '../shared/ipc'
 import { AppPreferences } from '../shared/types'
 import { openExternalSafely } from './services/navigation-guard'
@@ -6,6 +7,7 @@ import { SessionManager } from './services/session-manager'
 import { SettingsStore } from './services/settings-store'
 import { WindowManager } from './services/window-manager'
 import { logger } from './services/logger'
+import { checkForUpdatesNow } from './services/auto-updater'
 
 interface IpcDependencies {
   windowManager: WindowManager
@@ -17,6 +19,19 @@ export function registerIpc({ windowManager, sessionManager, settingsStore }: Ip
   ipcMain.handle(IPC.getStatus, () => windowManager.getStatus())
   ipcMain.handle(IPC.getHealth, () => windowManager.getHealth())
   ipcMain.handle(IPC.getPreferences, () => settingsStore.getPreferences())
+  ipcMain.handle(IPC.getAppInfo, () => ({ version: app.getVersion() }))
+  ipcMain.handle(IPC.checkForUpdates, () => checkForUpdatesNow())
+  ipcMain.handle(IPC.openLogsFolder, async () => {
+    const error = await shell.openPath(path.join(app.getPath('userData'), 'logs'))
+    if (error) {
+      logger.warn(`Falha ao abrir a pasta de logs: ${error}`)
+    }
+  })
+  ipcMain.on(IPC.openRecent, (_event, index: unknown) => {
+    if (typeof index === 'number' && Number.isInteger(index) && index >= 0 && index < 10) {
+      void windowManager.openRecentChat(index)
+    }
+  })
 
   ipcMain.handle(IPC.setPreferences, async (_event, preferences: Partial<AppPreferences>) => {
     const nextPreferences = settingsStore.updatePreferences(preferences ?? {})

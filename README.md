@@ -108,11 +108,9 @@ git commit -am "chore: release X.Y.Z" && git push
 npm run release
 ```
 
-`npm run release` (`scripts/release.mjs`) confere que o `master` está limpo e
-igual ao `origin/master` e que a versão ainda não foi publicada. Depois gera o
-instalador e cria a Release `vX.Y.Z` com `BitWhat-X.Y.Z-Setup.exe`, o
-`.blockmap` (download só das partes alteradas) e o `latest.yml` (lido pelo app).
-O token vem de `GH_TOKEN` ou do login do GitHub CLI (`gh auth login`).
+O passo a passo completo, com pré-requisitos, o que o comando confere, os
+arquivos publicados e a solução de problemas, está em
+[`docs/RELEASE.md`](docs/RELEASE.md).
 
 ## Limpar sessão/logout
 
@@ -196,12 +194,32 @@ O WhatsApp Web não usa o Chrome instalado no Windows quando roda dentro deste a
 - Balão flutuante (`Balão flutuante` nas configurações): botão redondo com o
   logo, sempre por cima das outras janelas e fora da barra de tarefas. Arraste
   para onde quiser (a posição fica salva e é ajustada se o monitor mudar);
-  clique para abrir/ocultar o BitWhat; botão direito para `Abrir`/`Ocultar`,
-  `Desativar balão` e `Sair`. Mostra o número de conversas não lidas, lido do
-  título da página do WhatsApp (só o número).
-- Painel da engrenagem compacto: formato do chat, tema, `Balão flutuante`,
-  `Silenciar notificações`, `Iniciar na bandeja`, `Iniciar com Windows`,
-  `Limpar sessão`, `Ocultar` e `Sair`.
+  clique para abrir/ocultar o BitWhat. Com `Abrir junto ao balão` ligado, a
+  janela aparece ao lado dele; aberta de outro jeito (bandeja, atalho), volta à
+  posição de antes, e arrastá-la enquanto encaixada torna a nova posição a
+  definitiva. Botão direito: as conversas não lidas do topo da lista (abrem
+  direto), `Abrir`/`Ocultar`, `Desativar balão` e `Sair`. Mostra o número de
+  conversas não lidas, lido do título da página do WhatsApp (só o número).
+- Troca rápida (`Conversas recentes`, ligável em Comportamento): `Ctrl+Tab` vai
+  para a conversa anterior (na grade, para a última aberta), e no chat uma barra
+  abaixo do topo mostra as conversas recentes. Os nomes ficam só na memória da
+  página e do app, nunca no disco ou no log (`whatsapp-quick-switch.ts`).
+- `Digitar para buscar` (Comportamento): na grade, começar a digitar já escreve
+  na busca de conversas.
+- Atalhos: `Ctrl+/` ou `F1` mostra a lista de atalhos. Depois do primeiro login,
+  4 dicas curtas apresentam a grade, a troca rápida, os atalhos e o balão
+  (revê-las em Configurações > Sobre > `Dicas`).
+- Configurações em seções:
+  - `Aparência`: formato do chat e tema.
+  - `Comportamento`: `Balão flutuante`, `Abrir junto ao balão`, `Conversas
+    recentes`, `Digitar para buscar`, `Iniciar com Windows` e `Iniciar na
+    bandeja`.
+  - `Notificações`: `Silenciar notificações`.
+  - `Sobre`: versão, `Verificar atualizações`, resultado do autodiagnóstico,
+    `Atalhos`, `Dicas` e `Logs` (abre a pasta de logs).
+  - Sempre visíveis: `Limpar sessão`, `Ocultar` e `Sair`.
+- A barra do topo só mostra o estado do WhatsApp quando há algo a dizer
+  (carregando, aguardando login, erro).
 - Formato do chat: `Padrão` ou `Mini`.
 - O formato `Mini` reduz a janela (440 px de largura) e mostra a conversa em
   coluna única: cabeçalho em linha (foto + nome), mensagens e campo de texto.
@@ -226,6 +244,7 @@ src/
       tray-manager.ts
       bubble-manager.ts
       whatsapp-health.ts
+      whatsapp-quick-switch.ts
       auto-updater.ts
       session-manager.ts
       settings-store.ts

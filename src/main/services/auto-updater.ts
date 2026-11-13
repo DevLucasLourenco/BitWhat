@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, Notification } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { IPC } from '../../shared/ipc'
+import type { UpdateCheckResult } from '../../shared/types'
 import { logger } from './logger'
 
 // Atualizações vêm das Releases do GitHub (publicadas com `npm run release`).
@@ -10,6 +11,41 @@ const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000
 const INITIAL_DELAY_MS = 5_000
 
 let checkInterval: NodeJS.Timeout | undefined
+
+// Compara versões x.y.z (sufixos como -beta são ignorados): >0 se a > b.
+function compareVersions(a: string, b: string): number {
+  const parse = (version: string): number[] => version.split('-')[0]!.split('.').map((part) => Number(part) || 0)
+  const left = parse(a)
+  const right = parse(b)
+  for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
+    const diff = (left[index] ?? 0) - (right[index] ?? 0)
+    if (diff !== 0) {
+      return diff
+    }
+  }
+  return 0
+}
+
+// Verificação pedida pelo usuário (Configurações > Sobre).
+export async function checkForUpdatesNow(): Promise<UpdateCheckResult> {
+  if (!app.isPackaged) {
+    return { state: 'unavailable', reason: 'Disponível só no app instalado.' }
+  }
+
+  try {
+    const result = await autoUpdater.checkForUpdates()
+    const latest = result?.updateInfo.version
+    if (!latest) {
+      return { state: 'unavailable', reason: 'Não foi possível verificar agora.' }
+    }
+    return compareVersions(latest, app.getVersion()) > 0
+      ? { state: 'available', version: latest }
+      : { state: 'up-to-date', version: app.getVersion() }
+  } catch (error) {
+    logger.warn('Auto-updater: verificação manual falhou', error)
+    return { state: 'unavailable', reason: 'Sem conexão com o GitHub. Tente mais tarde.' }
+  }
+}
 
 export function setupAutoUpdater(mainWindow: BrowserWindow): void {
   if (!app.isPackaged) {
