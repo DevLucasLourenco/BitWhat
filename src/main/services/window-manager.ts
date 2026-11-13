@@ -19,6 +19,7 @@ import {
   WHATSAPP_BROWSER_USER_AGENT,
   WHATSAPP_URL,
   WhatsAppPanelMode,
+  RecentChat,
   WhatsAppHealth,
   WhatsAppState,
   WhatsAppStatus
@@ -47,6 +48,13 @@ import { createWhatsAppLoginScreenScript, WHATSAPP_LOGIN_CSS } from './whatsapp-
 import { createWhatsAppChatGridScript, WHATSAPP_CHAT_GRID_CSS } from './whatsapp-chat-grid'
 import { createWhatsAppDownloadPromoScript, WHATSAPP_DOWNLOAD_PROMO_CSS } from './whatsapp-download-promo'
 import { WhatsAppHealthMonitor } from './whatsapp-health'
+import {
+  createWhatsAppQuickSwitchScript,
+  KEY_REQUEST_PREFIX,
+  RECENTS_PREFIX,
+  SHORTCUTS_PREFIX,
+  WHATSAPP_QUICK_SWITCH_CSS
+} from './whatsapp-quick-switch'
 
 const MIN_WIDTH = 360
 const MIN_HEIGHT = 560
@@ -148,6 +156,8 @@ export class WindowManager {
   private loginCssKey?: string | undefined
   private chatGridCssKey?: string | undefined
   private downloadPromoCssKey?: string | undefined
+  private quickSwitchCssKey?: string | undefined
+  private recents: RecentChat[] = []
   private isQuitting = false
   private allowProgrammaticEscape = false
   private currentPanel: WhatsAppPanelMode = resolveWhatsAppPanelMode(DEFAULT_PREFERENCES)
@@ -163,6 +173,11 @@ export class WindowManager {
   private stateProbeTimer?: NodeJS.Timeout | undefined
   private crashTimes: number[] = []
   private lastBlurAt = 0
+  // Janela encaixada ao lado do balão: guarda a posição livre para voltar a ela
+  // quando o app for aberto de outro jeito (bandeja, atalho, barra de tarefas).
+  private dockedToBubble = false
+  private boundsBeforeDock?: Rectangle | undefined
+  private programmaticMoveUntil = 0
   private readonly healthMonitor = new WhatsAppHealthMonitor(
     () => this.whatsappView?.webContents,
     (health) => this.mainWindow?.webContents.send(IPC.healthChanged, health)
@@ -255,6 +270,7 @@ export class WindowManager {
     }
 
     this.setBackgroundThrottling(false)
+    this.undock()
     this.ensureVisibleOnDisplay()
     if (this.mainWindow.isMinimized()) {
       this.mainWindow.restore()
@@ -289,6 +305,109 @@ export class WindowManager {
     }
 
     this.show()
+  }
+
+  // Clique no balão: oculta se a janela está ativa; senão mostra, ao lado do
+  // balão quando "Abrir junto ao balão" está ligado.
+  toggleFromBubble(anchor: Rectangle): void {
+    if (!this.mainWindow) {
+      return
+    }
+    const active = this.mainWindow.isFocused() || Date.now() - this.lastBlurAt < TOGGLE_BLUR_GRACE_MS
+    if (this.mainWindow.isVisible() && !this.mainWindow.isMinimized() && active) {
+      this.hide()
+      return
+    }
+    this.showFromBubble(anchor)
+  }
+
+  showFromBubble(anchor: Rectangle): void {
+    if (!this.mainWindow) {
+      return
+    }
+    if (!this.settingsStore.getPreferences().bubbleDock) {
+      this.show()
+      return
+    }
+
+    this.setBackgroundThrottling(false)
+    if (this.mainWindow.isMinimized()) {
+      this.mainWindow.restore()
+    }
+    if (!this.dockedToBubble) {
+      this.boundsBeforeDock = this.captureBounds()
+    }
+    this.dockedToBubble = true
+    this.programmaticMoveUntil = Date.now() + 500
+    this.mainWindow.setBounds(this.dockBounds(anchor))
+    this.mainWindow.show()
+    this.mainWindow.moveTop()
+    this.mainWindow.focus()
+  }
+
+  // Abre a conversa pelo nome (menu de não lidas do balão).
+  async openChatByName(name: string, anchor?: Rectangle): Promise<void> {
+    const webContents = this.whatsappView?.webContents
+    if (!webContents || webContents.isDestroyed()) {
+      return
+    }
+    if (anchor) {
+      this.showFromBubble(anchor)
+    } else {
+      this.show()
+    }
+    try {
+      await webContents.executeJavaScript(`window.__bitWhatQuickSwitch?.openName(${JSON.stringify(name)})`, true)
+    } catch (error) {
+      logger.warn('Falha ao abrir conversa não lida', error)
+    }
+  }
+
+  // Conversas não lidas visíveis no topo da lista (só para o menu do balão).
+  async getUnreadChats(): Promise<Array<{ name: string; count: number }>> {
+    const webContents = this.whatsappView?.webContents
+    if (!webContents || webContents.isDestroyed() || this.status.state !== 'ready') {
+      return []
+    }
+    try {
+      const result = (await webContents.executeJavaScript('window.__bitWhatQuickSwitch?.unread() ?? []', true)) as unknown
+      if (!Array.isArray(result)) {
+        return []
+      }
+      return result
+        .filter(
+          (item): item is { name: string; count: number } =>
+            Boolean(item) && typeof item.name === 'string' && item.name.length > 0 && typeof item.count === 'number'
+        )
+        .slice(0, 10)
+        .map((item) => ({ name: item.name.slice(0, 120), count: Math.max(0, Math.floor(item.count)) }))
+    } catch {
+      return []
+    }
+  }
+
+  private undock(): void {
+    if (!this.dockedToBubble || !this.mainWindow) {
+      return
+    }
+    this.dockedToBubble = false
+    if (this.boundsBeforeDock) {
+      this.programmaticMoveUntil = Date.now() + 500
+      this.mainWindow.setBounds(this.fitBoundsToDisplay(this.boundsBeforeDock))
+    }
+    this.boundsBeforeDock = undefined
+  }
+
+  // Ao lado do balão (à esquerda se couber, senão à direita), centrada na
+  // altura dele e dentro da área útil do monitor.
+  private dockBounds(anchor: Rectangle): Rectangle {
+    const { width, height } = this.mainWindow?.getBounds() ?? { width: DEFAULT_PANEL_WIDTH, height: DEFAULT_PANEL_HEIGHT }
+    const area = screen.getDisplayMatching(anchor).workArea
+    const gap = 8
+    const fitsLeft = anchor.x - gap - width >= area.x
+    const x = fitsLeft ? anchor.x - gap - width : anchor.x + anchor.width + gap
+    const y = anchor.y + anchor.height / 2 - height / 2
+    return this.fitBoundsToDisplay({ x: Math.round(x), y: Math.round(y), width, height })
   }
 
   reloadWhatsApp(): void {
@@ -328,6 +447,28 @@ export class WindowManager {
     this.mainWindow.webContents.send(IPC.preferencesChanged, preferences)
     await this.applyWhatsAppTheme(preferences.theme)
     await this.applyWhatsAppPanelMode(panelMode)
+    await this.applyWhatsAppQuickSwitch(preferences)
+  }
+
+  showShortcuts(): void {
+    this.mainWindow?.webContents.send(IPC.showShortcuts)
+  }
+
+  getRecents(): RecentChat[] {
+    return this.recents.map((recent) => ({ ...recent }))
+  }
+
+  // Abre uma conversa da barra de recentes (índice na lista da página).
+  async openRecentChat(index: number): Promise<void> {
+    const webContents = this.whatsappView?.webContents
+    if (!webContents || webContents.isDestroyed()) {
+      return
+    }
+    try {
+      await webContents.executeJavaScript(`window.__bitWhatQuickSwitch?.open(${Math.floor(index)})`, true)
+    } catch (error) {
+      logger.warn('Falha ao abrir conversa recente', error)
+    }
   }
 
   setChromeHeight(height: number): void {
@@ -417,7 +558,14 @@ export class WindowManager {
       this.scheduleResizeUpdate()
     })
 
-    this.mainWindow.on('move', () => this.scheduleBoundsSave())
+    this.mainWindow.on('move', () => {
+      if (this.dockedToBubble && Date.now() > this.programmaticMoveUntil) {
+        // O usuário arrastou a janela encaixada: a nova posição passa a valer.
+        this.dockedToBubble = false
+        this.boundsBeforeDock = undefined
+      }
+      this.scheduleBoundsSave()
+    })
 
     this.mainWindow.on('blur', () => {
       this.lastBlurAt = Date.now()
@@ -473,6 +621,7 @@ export class WindowManager {
       this.loginCssKey = undefined
       this.chatGridCssKey = undefined
       this.downloadPromoCssKey = undefined
+      this.quickSwitchCssKey = undefined
       this.setStatus(this.createStatus('loading', 'Carregando WhatsApp Web'))
 
       if (this.mainWindow?.isVisible()) {
@@ -496,6 +645,7 @@ export class WindowManager {
       void this.applyWhatsAppLoginScreen()
       void this.applyWhatsAppChatGrid()
       void this.applyWhatsAppDownloadPromoBlock()
+      void this.applyWhatsAppQuickSwitch()
       void this.applyWhatsAppPanelMode()
       this.detectWhatsAppState()
     })
@@ -509,6 +659,7 @@ export class WindowManager {
       void this.applyWhatsAppLoginScreen()
       void this.applyWhatsAppChatGrid()
       void this.applyWhatsAppDownloadPromoBlock()
+      void this.applyWhatsAppQuickSwitch()
       void this.applyWhatsAppPanelMode()
       this.detectWhatsAppState()
     })
@@ -555,10 +706,31 @@ export class WindowManager {
       if (input.key === 'F5' || (input.control && input.key.toLowerCase() === 'r')) {
         event.preventDefault()
         this.reloadWhatsApp()
+        return
+      }
+      // Ctrl+/ ou F1: lista de atalhos no topo do app.
+      if (input.type === 'keyDown' && (input.key === 'F1' || (input.control && input.key === '/'))) {
+        event.preventDefault()
+        this.showShortcuts()
       }
     })
 
     webContents.on('console-message', (_event, _level, message) => {
+      if (message.startsWith(RECENTS_PREFIX)) {
+        this.updateRecents(message.slice(RECENTS_PREFIX.length))
+        return
+      }
+      if (message === SHORTCUTS_PREFIX) {
+        this.showShortcuts()
+        return
+      }
+      if (message.startsWith(KEY_REQUEST_PREFIX)) {
+        if (message.slice(KEY_REQUEST_PREFIX.length) === 'Enter') {
+          void this.sendListEnter()
+        }
+        return
+      }
+
       const diagnosticPrefix = '__BITWHAT_PANEL_DIAG__:'
       if (message.startsWith(diagnosticPrefix)) {
         logger.diagnostic(`Painel WhatsApp: ${message.slice(diagnosticPrefix.length)}`)
@@ -890,6 +1062,74 @@ export class WindowManager {
     }
   }
 
+  private async applyWhatsAppQuickSwitch(preferences = this.settingsStore.getPreferences()): Promise<void> {
+    const webContents = this.whatsappView?.webContents
+    if (!webContents || webContents.isDestroyed()) {
+      return
+    }
+
+    try {
+      if (!this.quickSwitchCssKey) {
+        this.quickSwitchCssKey = await webContents.insertCSS(WHATSAPP_QUICK_SWITCH_CSS)
+      }
+
+      await webContents.executeJavaScript(
+        createWhatsAppQuickSwitchScript({ recentChats: preferences.recentChats, typeToSearch: preferences.typeToSearch }),
+        true
+      )
+    } catch (error) {
+      logger.warn('Falha ao aplicar a troca rápida de conversas', error)
+    }
+  }
+
+  // Lista de recentes vinda da página: só nomes, mantida em memória e repassada
+  // à barra do app. Nunca vai para o log nem para o disco.
+  private updateRecents(payload: string): void {
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(payload)
+    } catch {
+      return
+    }
+    if (!Array.isArray(parsed)) {
+      return
+    }
+    const recents: RecentChat[] = parsed
+      .filter(
+        (item): item is RecentChat =>
+          Boolean(item) && typeof item.name === 'string' && item.name.length > 0 && typeof item.current === 'boolean'
+      )
+      .slice(0, 10)
+      .map((item) => ({ name: item.name.slice(0, 120), current: item.current }))
+    this.recents = recents
+    this.mainWindow?.webContents.send(IPC.recentsChanged, this.getRecents())
+  }
+
+  // Enter de verdade (o WhatsApp ignora eventos sintéticos) para abrir a
+  // conversa com foco na lista. Só se o foco estiver mesmo num cartão da lista:
+  // nunca no campo de mensagem, onde o Enter enviaria texto.
+  private async sendListEnter(): Promise<void> {
+    const webContents = this.whatsappView?.webContents
+    if (!webContents || webContents.isDestroyed()) {
+      return
+    }
+    try {
+      const focusedOnRow = (await webContents.executeJavaScript(
+        `(() => { const el = document.activeElement; return Boolean(el && !el.isContentEditable && el.closest('#pane-side [role="row"]')); })()`,
+        true
+      )) as boolean
+      if (!focusedOnRow) {
+        return
+      }
+      webContents.focus()
+      webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' })
+      webContents.sendInputEvent({ type: 'char', keyCode: String.fromCharCode(13) })
+      webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' })
+    } catch (error) {
+      logger.warn('Falha ao abrir conversa pela lista', error)
+    }
+  }
+
   private async applyWhatsAppChatGrid(): Promise<void> {
     const webContents = this.whatsappView?.webContents
     if (!webContents || webContents.isDestroyed()) {
@@ -1143,7 +1383,13 @@ export class WindowManager {
   }
 
   private scheduleBoundsSave(): void {
-    if (!this.mainWindow || this.mainWindow.isMinimized() || this.currentPanel === 'mini-chat' || this.currentPanel === 'image') {
+    if (
+      !this.mainWindow ||
+      this.mainWindow.isMinimized() ||
+      this.dockedToBubble ||
+      this.currentPanel === 'mini-chat' ||
+      this.currentPanel === 'image'
+    ) {
       return
     }
 
@@ -1152,7 +1398,7 @@ export class WindowManager {
     }
 
     this.saveBoundsTimer = setTimeout(() => {
-      if (!this.mainWindow) {
+      if (!this.mainWindow || this.dockedToBubble) {
         return
       }
 

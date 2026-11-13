@@ -8,6 +8,12 @@ html[data-bitwhat-panel-pending="mini-chat"] #app:has(#pane-side) {
   visibility: hidden !important;
 }
 
+/* Botão "Arquivadas" do topo da lista de conversas: removido (não usado). */
+#pane-side [data-testid="chatlist-panel-archived-button"],
+#pane-side > button:has([data-icon="archived"]) {
+  display: none !important;
+}
+
 html[data-bitwhat-panel="contacts"],
 html[data-bitwhat-panel="chat"],
 html[data-bitwhat-panel="mini-chat"],

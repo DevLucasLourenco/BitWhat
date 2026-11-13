@@ -15,6 +15,12 @@ export const IPC = {
   preferencesChanged: 'app:preferences-changed',
   updateReady: 'app:update-ready',
   installUpdate: 'app:install-update',
+  getAppInfo: 'app:get-info',
+  checkForUpdates: 'app:check-for-updates',
+  openLogsFolder: 'app:open-logs-folder',
+  showShortcuts: 'app:show-shortcuts',
+  recentsChanged: 'whatsapp:recents-changed',
+  openRecent: 'whatsapp:open-recent',
   // Balão flutuante (janela própria, preload próprio).
   bubbleDragStart: 'bubble:drag-start',
   bubbleDragMove: 'bubble:drag-move',

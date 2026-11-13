@@ -27,7 +27,7 @@ html[data-bitwhat-panel="contacts"] #pane-side[data-bitwhat-chat-grid-pane="true
   zoom: var(--bw-zoom, 1) !important;
 }
 
-/* "Arquivadas" e afins, acima da grade: tamanho normal. */
+/* Avisos e afins na lista, fora da grade: tamanho normal. */
 html[data-bitwhat-panel="contacts"] #pane-side[data-bitwhat-chat-grid-pane="true"] > :not(:has([role="grid"])) {
   zoom: calc(1 / var(--bw-zoom, 1)) !important;
 }

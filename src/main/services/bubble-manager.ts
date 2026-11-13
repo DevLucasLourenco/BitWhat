@@ -1,5 +1,5 @@
 import { BrowserWindow, ipcMain, Menu, screen } from 'electron'
-import type { IpcMainEvent, Point, Rectangle } from 'electron'
+import type { IpcMainEvent, MenuItemConstructorOptions, Point, Rectangle } from 'electron'
 import path from 'node:path'
 import { IPC } from '../../shared/ipc'
 import { logger } from './logger'
@@ -54,14 +54,14 @@ export class BubbleManager {
     })
 
     ipcMain.on(IPC.bubbleClick, (event) => {
-      if (this.isFromBubble(event)) {
-        this.windowManager.toggle()
+      if (this.isFromBubble(event) && this.window) {
+        this.windowManager.toggleFromBubble(this.window.getBounds())
       }
     })
 
     ipcMain.on(IPC.bubbleContextMenu, (event) => {
       if (this.isFromBubble(event)) {
-        this.showContextMenu()
+        void this.showContextMenu()
       }
     })
   }
@@ -154,17 +154,39 @@ export class BubbleManager {
     logger.info('Balão flutuante ativado')
   }
 
-  private showContextMenu(): void {
+  // Menu do balão: conversas não lidas do topo da lista (abrem direto, junto ao
+  // balão se configurado) e as ações do app.
+  private async showContextMenu(): Promise<void> {
     if (!this.window) {
       return
     }
 
+    const unread = await this.windowManager.getUnreadChats()
+    if (!this.window || this.window.isDestroyed()) {
+      return
+    }
+    const anchor = this.window.getBounds()
+    // No Windows, "&" no rótulo vira atalho de letra; "&&" mostra o caractere.
+    const escapeLabel = (text: string): string => text.replace(/&/g, '&&')
+    const unreadItems: MenuItemConstructorOptions[] =
+      unread.length > 0
+        ? [
+            { label: 'Não lidas', enabled: false },
+            ...unread.map((chat) => ({
+              label: chat.count > 0 ? `${escapeLabel(chat.name)}  (${chat.count})` : escapeLabel(chat.name),
+              click: () => void this.windowManager.openChatByName(chat.name, anchor)
+            }))
+          ]
+        : [{ label: 'Nenhuma não lida no topo da lista', enabled: false }]
+
     const mainWindow = this.windowManager.getWindow()
     const mainVisible = Boolean(mainWindow?.isVisible())
     const menu = Menu.buildFromTemplate([
+      ...unreadItems,
+      { type: 'separator' },
       {
         label: mainVisible ? 'Ocultar BitWhat' : 'Abrir BitWhat',
-        click: () => (mainVisible ? this.windowManager.hide() : this.windowManager.show())
+        click: () => (mainVisible ? this.windowManager.hide() : this.windowManager.showFromBubble(anchor))
       },
       { type: 'separator' },
       {

@@ -538,3 +538,240 @@ button:disabled {
 .health-notice p {
   margin: 0;
 }
+
+/* Configurações em seções. */
+.settings-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-tabs button {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 4px 4px 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-tabs button:hover:not(.selected) {
+  color: var(--text);
+}
+
+.settings-tabs button.selected {
+  border-bottom-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.settings-tabs button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.settings-section {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.settings-hint svg {
+  flex: 0 0 auto;
+}
+
+.switch-row.disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.switch-row input:disabled {
+  cursor: default;
+}
+
+.about {
+  display: grid;
+  gap: 8px;
+}
+
+.about-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.about-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.text-button.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: white;
+}
+
+.text-button.primary:hover {
+  background: var(--accent-strong);
+}
+
+/* Barra de conversas recentes (modo conversa). */
+.recents-bar {
+  display: flex;
+  gap: 6px;
+  overflow: hidden;
+  border-top: 1px solid var(--border);
+  padding: 6px 12px;
+}
+
+.recent-chip {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 132px;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 9px 2px 2px;
+  background: var(--surface-strong);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.recent-chip:hover {
+  border-color: var(--accent);
+}
+
+.recent-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.recent-avatar {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.recent-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Atalhos e dicas. */
+.panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.panel-heading h2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.icon-button.small {
+  width: 26px;
+  height: 26px;
+}
+
+.shortcut-list {
+  display: grid;
+  max-height: 300px;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.shortcut-group h3 {
+  margin: 0 0 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.shortcut-row {
+  display: grid;
+  grid-template-columns: minmax(96px, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  font-size: 12px;
+}
+
+.shortcut-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+kbd {
+  min-width: 20px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 0 5px;
+  background: var(--surface-strong);
+  color: var(--text);
+  font: 600 11px/18px 'Segoe UI', system-ui, sans-serif;
+  text-align: center;
+}
+
+.shortcut-label {
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.onboarding p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.onboarding-count {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.onboarding-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}

@@ -51,6 +51,14 @@ export interface AppPreferences {
   theme: ThemePreference
   muteNotifications: boolean
   floatingBubble: boolean
+  // Ctrl+Tab e barra de conversas recentes no modo conversa.
+  recentChats: boolean
+  // Na grade, começar a digitar abre a busca de conversas.
+  typeToSearch: boolean
+  // Abrir pelo balão posiciona a janela junto a ele.
+  bubbleDock: boolean
+  // Dicas de boas-vindas já vistas.
+  onboardingDone: boolean
 }
 
 export const DEFAULT_PREFERENCES: AppPreferences = {
@@ -61,8 +69,28 @@ export const DEFAULT_PREFERENCES: AppPreferences = {
   chatFormat: 'standard',
   theme: 'dark',
   muteNotifications: false,
-  floatingBubble: false
+  floatingBubble: false,
+  recentChats: true,
+  typeToSearch: true,
+  bubbleDock: true,
+  onboardingDone: false
 }
+
+// Conversa recente mostrada na barra do modo conversa. Só o nome (já visível
+// no WhatsApp); nunca é gravado em disco nem no log.
+export interface RecentChat {
+  name: string
+  current: boolean
+}
+
+export interface AppInfo {
+  version: string
+}
+
+export type UpdateCheckResult =
+  | { state: 'up-to-date'; version: string }
+  | { state: 'available'; version: string }
+  | { state: 'unavailable'; reason: string }
 
 export function resolveWhatsAppPanelMode(preferences: Pick<AppPreferences, 'whatsappPanel' | 'chatFormat'>): WhatsAppPanelMode {
   if (preferences.whatsappPanel === 'chat' && preferences.chatFormat === 'mini') {
