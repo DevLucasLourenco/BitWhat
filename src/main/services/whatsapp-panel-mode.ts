@@ -103,10 +103,51 @@ html[data-bitwhat-panel] #app:not([data-bitwhat-connected-projection="true"]) > 
   max-height: none !important;
 }
 
-[data-bitwhat-panel-hidden="true"]:not(:has([role="menu"], [role="dialog"])):not(#expressions-panel-container),
+[data-bitwhat-panel-hidden="true"]:not(:has([role="menu"], [role="dialog"], [data-testid="media-viewer-modal"], [data-testid="move_resize_component"])):not(#expressions-panel-container),
 [data-bitwhat-panel-hidden="true"]:has(#pane-side, [data-bitwhat-chat-panel="true"], [data-bitwhat-chat-fill="true"]) {
   display: none !important;
   visibility: hidden !important;
+}
+
+/* Visualizador de fotos e vídeos (clique numa mídia da conversa) e player
+   flutuante de vídeo (botão "Modo picture-in-picture" do visualizador). O
+   WhatsApp os monta em contêineres irmãos do chat; escondidos, o vídeo tocava
+   sem imagem e o player flutuante não aparecia. Ficam acima do painel. */
+html[data-bitwhat-panel] [data-bitwhat-panel-hidden="true"]:has([data-testid="media-viewer-modal"], [data-testid="move_resize_component"]) {
+  display: block !important;
+  visibility: visible !important;
+}
+
+html[data-bitwhat-panel] [data-testid="media-viewer-modal"],
+html[data-bitwhat-panel] [data-testid="move_resize_component"] {
+  visibility: visible !important;
+}
+
+html[data-bitwhat-panel] [data-testid="media-viewer-modal"] {
+  z-index: 2147483647 !important;
+}
+
+/* Janela estreita: a barra do visualizador (Responder, Encaminhar, Baixar,
+   Fechar...) não cabia e os primeiros botões ficavam fora da tela. Ela quebra
+   em linhas alinhadas à direita; o remetente some para dar espaço. */
+@media (max-width: 460px) {
+  html[data-bitwhat-panel] [data-testid="media-viewer-modal"] > :first-child {
+    height: auto !important;
+    min-height: 60px !important;
+  }
+  html[data-bitwhat-panel] [data-testid="media-viewer-modal"] > :first-child > :first-child:not(:last-child) {
+    display: none !important;
+  }
+  html[data-bitwhat-panel] [data-testid="media-viewer-modal"] > :first-child > :last-child {
+    flex: 1 1 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+  html[data-bitwhat-panel] [data-testid="media-viewer-modal"] > :first-child > :last-child > * {
+    flex-wrap: wrap !important;
+    justify-content: flex-end !important;
+    max-width: 100% !important;
+  }
 }
 
 #bitwhat-stage {
@@ -2284,6 +2325,10 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
     if (requestedPanel === 'image' || findMediaEditorRoot()) {
       return true;
     }
+    // Visualizador de fotos/vídeos ou vídeo em tela cheia: o Esc é deles.
+    if (document.fullscreenElement || document.querySelector('[data-testid="media-viewer-modal"]')) {
+      return true;
+    }
     const isVisible = (element) => {
       const box = element.getBoundingClientRect();
       return box.width > 0 && box.height > 0;
@@ -2352,6 +2397,13 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
       return;
     }
     if (event.key !== 'Escape' && event.key !== 'Esc') {
+      return;
+    }
+    // Vídeo em tela cheia: o Esc sai dela (no Electron não há quem faça isso).
+    if (document.fullscreenElement) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      void document.exitFullscreen().catch(() => undefined);
       return;
     }
     if ((window.__bitWhatEscBypassUntil || 0) > Date.now()) {

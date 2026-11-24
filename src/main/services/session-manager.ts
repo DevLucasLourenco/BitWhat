@@ -9,7 +9,7 @@ import {
 import { isWhatsAppOrigin } from './navigation-guard'
 import { logger } from './logger'
 
-const ALLOWED_PERMISSIONS = new Set(['notifications', 'media', 'clipboard-sanitized-write'])
+const ALLOWED_PERMISSIONS = new Set(['notifications', 'media', 'clipboard-sanitized-write', 'fullscreen'])
 const STATIC_RESOURCE_TYPES = new Set(['stylesheet', 'script', 'image', 'font'])
 const CACHEABLE_CACHE_CONTROL = 'public, max-age=86400, immutable'
 

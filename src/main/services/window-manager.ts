@@ -173,6 +173,9 @@ export class WindowManager {
   private stateProbeTimer?: NodeJS.Timeout | undefined
   private crashTimes: number[] = []
   private lastBlurAt = 0
+  // Vídeo em tela cheia (botão "Tela cheia" do player do WhatsApp).
+  private htmlFullScreen = false
+  private boundsBeforeHtmlFullScreen?: Rectangle | undefined
   // Janela encaixada ao lado do balão: guarda a posição livre para voltar a ela
   // quando o app for aberto de outro jeito (bandeja, atalho, barra de tarefas).
   private dockedToBubble = false
@@ -599,6 +602,37 @@ export class WindowManager {
     // botão direito no campo de mensagem não oferecia "Colar" (inclusive para
     // colar imagens/arquivos na conversa). Menus próprios do WhatsApp (conversas,
     // mensagens) continuam funcionando, porque a página os trata antes.
+    // Tela cheia pedida pela página (vídeo): o Electron põe a janela em tela
+    // cheia e a página ocupa tudo, sem a barra do BitWhat. Ao sair, a janela
+    // volta à posição e ao tamanho de antes.
+    webContents.on('enter-html-full-screen', () => {
+      if (!this.mainWindow) {
+        return
+      }
+      this.htmlFullScreen = true
+      this.boundsBeforeHtmlFullScreen ??= this.mainWindow.getNormalBounds()
+      this.updateWhatsAppBounds()
+    })
+    webContents.on('leave-html-full-screen', () => {
+      if (!this.mainWindow) {
+        return
+      }
+      this.htmlFullScreen = false
+      const restore = this.boundsBeforeHtmlFullScreen
+      this.boundsBeforeHtmlFullScreen = undefined
+      if (this.mainWindow.isFullScreen()) {
+        this.mainWindow.setFullScreen(false)
+      }
+      this.updateWhatsAppBounds()
+      if (restore) {
+        setTimeout(() => {
+          if (this.mainWindow && !this.mainWindow.isDestroyed() && !this.mainWindow.isFullScreen()) {
+            this.mainWindow.setBounds(this.fitBoundsToDisplay(restore))
+          }
+        }, 200)
+      }
+    })
+
     webContents.on('context-menu', (event, params) => {
       const template = this.buildContextMenu(webContents, params)
       if (template.length === 0) {
@@ -610,7 +644,7 @@ export class WindowManager {
       if (this.mainWindow) {
         // Posição do clique (coordenadas da view do WhatsApp, que fica abaixo da
         // barra do app), em vez da posição atual do cursor do sistema.
-        menu.popup({ window: this.mainWindow, x: Math.round(params.x), y: Math.round(params.y + this.chromeHeight) })
+        menu.popup({ window: this.mainWindow, x: Math.round(params.x), y: Math.round(params.y + (this.whatsappView?.getBounds().y ?? this.chromeHeight)) })
       }
     })
 
@@ -1374,11 +1408,12 @@ export class WindowManager {
     }
 
     const [width = 0, height = 0] = this.mainWindow.getContentSize()
+    const top = this.htmlFullScreen ? 0 : this.chromeHeight
     this.whatsappView.setBounds({
       x: 0,
-      y: this.chromeHeight,
+      y: top,
       width,
-      height: Math.max(120, height - this.chromeHeight)
+      height: Math.max(120, height - top)
     })
   }
 
@@ -1386,6 +1421,8 @@ export class WindowManager {
     if (
       !this.mainWindow ||
       this.mainWindow.isMinimized() ||
+      this.mainWindow.isFullScreen() ||
+      this.htmlFullScreen ||
       this.dockedToBubble ||
       this.currentPanel === 'mini-chat' ||
       this.currentPanel === 'image'
@@ -1398,7 +1435,7 @@ export class WindowManager {
     }
 
     this.saveBoundsTimer = setTimeout(() => {
-      if (!this.mainWindow || this.dockedToBubble) {
+      if (!this.mainWindow || this.dockedToBubble || this.mainWindow.isFullScreen()) {
         return
       }
 

@@ -50,6 +50,7 @@ export function createWhatsAppQuickSwitchScript(options: QuickSwitchOptions): st
   const isEditable = (element) =>
     element instanceof HTMLElement && (element.isContentEditable || element.matches('input, textarea, select'));
   const overlayOpen = () =>
+    Boolean(document.fullscreenElement || document.querySelector('[data-testid="media-viewer-modal"]')) ||
     Array.from(document.querySelectorAll('[role="menu"], [role="dialog"], [aria-modal="true"]')).some((element) => {
       const box = element.getBoundingClientRect();
       return box.width > 0 && box.height > 0;
