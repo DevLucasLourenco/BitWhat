@@ -103,7 +103,9 @@ html[data-bitwhat-panel] #app:not([data-bitwhat-connected-projection="true"]) > 
   max-height: none !important;
 }
 
-[data-bitwhat-panel-hidden="true"]:not(:has([role="menu"], [role="dialog"], [data-testid="media-viewer-modal"], [data-testid="move_resize_component"])):not(#expressions-panel-container),
+/* #wa-popovers-bucket guarda a lista de menções (@ num grupo) e outros
+   popovers do WhatsApp: escondido, a lista não aparecia. */
+[data-bitwhat-panel-hidden="true"]:not(:has([role="menu"], [role="dialog"], [data-testid="media-viewer-modal"], [data-testid="move_resize_component"])):not(#expressions-panel-container):not(#wa-popovers-bucket),
 [data-bitwhat-panel-hidden="true"]:has(#pane-side, [data-bitwhat-chat-panel="true"], [data-bitwhat-chat-fill="true"]) {
   display: none !important;
   visibility: hidden !important;
@@ -2333,7 +2335,8 @@ export function createEnableWhatsAppPanelScript(panel: WhatsAppPanelMode): strin
       const box = element.getBoundingClientRect();
       return box.width > 0 && box.height > 0;
     };
-    if (Array.from(document.querySelectorAll('[role="menu"], [role="dialog"], [aria-modal="true"]')).some(isVisible)) {
+    // Lista de menções (@ num grupo) e outros popovers do WhatsApp.
+    if (Array.from(document.querySelectorAll('[role="menu"], [role="dialog"], [aria-modal="true"], #wa-popovers-bucket > *')).some(isVisible)) {
       return true;
     }
     if (document.querySelector('#expressions-panel-container [role="tab"]')) {
