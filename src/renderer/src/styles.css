@@ -281,6 +281,8 @@ button:disabled {
 
 .settings-panel {
   display: grid;
+  /* Nunca mais largo que a janela: o que não couber encolhe (reticências). */
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   border-top: 1px solid var(--border);
   padding: 10px 12px 12px;
@@ -542,7 +544,7 @@ button:disabled {
 /* Configurações em seções. */
 .settings-tabs {
   display: flex;
-  gap: 2px;
+  gap: 0;
   border-bottom: 1px solid var(--border);
 }
 
@@ -552,12 +554,12 @@ button:disabled {
   overflow: hidden;
   border: 0;
   border-bottom: 2px solid transparent;
-  padding: 4px 4px 6px;
+  padding: 4px 2px 6px;
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
   font: inherit;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -774,4 +776,149 @@ kbd {
   display: flex;
   justify-content: flex-end;
   gap: 6px;
+}
+
+/* Senha do BitWhat: tela de bloqueio (cobre a janela toda; a view do WhatsApp
+   sai da janela enquanto bloqueado) e aba Segurança. */
+.lock-screen {
+  position: fixed;
+  z-index: 10;
+  inset: 0;
+  display: grid;
+  overflow: auto;
+  place-items: center;
+  padding: 16px;
+  background: var(--surface);
+}
+
+.lock-card {
+  display: grid;
+  width: min(100%, 280px);
+  justify-items: center;
+  gap: 10px;
+}
+
+.lock-mark {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--accent);
+  color: white;
+}
+
+.lock-card h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.lock-card .password-field,
+.lock-submit {
+  width: 100%;
+}
+
+.lock-error {
+  min-height: 16px;
+  margin: -4px 0 0;
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.security-form .lock-error {
+  min-height: 0;
+  margin: 0;
+  text-align: left;
+}
+
+.text-button.lock-forgot {
+  border-color: transparent;
+  background: transparent;
+}
+
+.password-field {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.password-label {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.password-input {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-strong);
+  padding: 0 2px 0 8px;
+}
+
+.password-input:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.password-input input {
+  min-width: 0;
+  height: 32px;
+  flex: 1 1 auto;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.password-input .icon-button {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.security-form {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-row.wide-label {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.compact-select {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-strong);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  padding: 1px 2px;
+}
+
+/* Janela baixa (Mini): tela de senha mais compacta. */
+@media (max-height: 340px) {
+  .lock-card {
+    gap: 6px;
+  }
+
+  .lock-mark {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+  }
+
+  .lock-mark svg {
+    width: 17px;
+    height: 17px;
+  }
 }

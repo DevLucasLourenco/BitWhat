@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { IpcRendererEvent } from 'electron'
 import type { BitWhatApi, UpdateInfo } from '../shared/api'
 import { IPC } from '../shared/ipc'
-import type { AppPreferences, RecentChat, WhatsAppHealth, WhatsAppStatus } from '../shared/types'
+import type { AppPreferences, LockState, RecentChat, WhatsAppHealth, WhatsAppStatus } from '../shared/types'
 
 const api: BitWhatApi = {
   getStatus: () => ipcRenderer.invoke(IPC.getStatus),
@@ -50,7 +50,18 @@ const api: BitWhatApi = {
     ipcRenderer.on(IPC.recentsChanged, listener)
     return () => ipcRenderer.removeListener(IPC.recentsChanged, listener)
   },
-  openRecent: (index: number) => ipcRenderer.send(IPC.openRecent, index)
+  openRecent: (index: number) => ipcRenderer.send(IPC.openRecent, index),
+  getLockState: () => ipcRenderer.invoke(IPC.getLockState),
+  onLockChanged: (callback: (state: LockState) => void) => {
+    const listener = (_event: IpcRendererEvent, state: LockState): void => callback(state)
+    ipcRenderer.on(IPC.lockChanged, listener)
+    return () => ipcRenderer.removeListener(IPC.lockChanged, listener)
+  },
+  lockNow: () => ipcRenderer.invoke(IPC.lockNow),
+  unlock: (password: string) => ipcRenderer.invoke(IPC.unlock, password),
+  setLockPassword: (current: string | null, next: string) => ipcRenderer.invoke(IPC.setLockPassword, current, next),
+  removeLockPassword: (current: string) => ipcRenderer.invoke(IPC.removeLockPassword, current),
+  forgotLockPassword: () => ipcRenderer.invoke(IPC.forgotLockPassword)
 }
 
 contextBridge.exposeInMainWorld('bitWhat', api)

@@ -6,6 +6,7 @@ import { logger } from './services/logger'
 import { SessionManager } from './services/session-manager'
 import { SettingsStore } from './services/settings-store'
 import { applyNativeTheme } from './services/theme-manager'
+import { AppLock } from './services/app-lock'
 import { BubbleManager } from './services/bubble-manager'
 import { TrayManager } from './services/tray-manager'
 import { WindowManager } from './services/window-manager'
@@ -20,6 +21,7 @@ if (!gotSingleInstanceLock) {
   app.quit()
 } else {
   let windowManager: WindowManager | undefined
+  let appLock: AppLock | undefined
 
   app.on('second-instance', () => {
     windowManager?.show()
@@ -33,14 +35,18 @@ if (!gotSingleInstanceLock) {
     sessionManager.configure()
 
     const preferences = settingsStore.getPreferences()
-    sessionManager.setNotificationsMuted(preferences.muteNotifications)
     applyNativeTheme(preferences.theme)
     applyLoginItemSettings(preferences)
 
-    windowManager = new WindowManager(settingsStore, sessionManager)
-    registerIpc({ windowManager, sessionManager, settingsStore })
+    // Antes da janela: se a senha pede bloqueio ao abrir, o WhatsApp nunca aparece.
+    appLock = new AppLock(settingsStore)
+    appLock.start()
 
-    const trayManager = new TrayManager(windowManager, sessionManager, settingsStore)
+    windowManager = new WindowManager(settingsStore, sessionManager, appLock)
+    windowManager.applyLockPrivacy(preferences)
+    registerIpc({ windowManager, sessionManager, settingsStore, appLock })
+
+    const trayManager = new TrayManager(windowManager, sessionManager, settingsStore, appLock)
     trayManager.create()
     windowManager.setTrayManager(trayManager)
 
@@ -49,7 +55,7 @@ if (!gotSingleInstanceLock) {
 
     const bubbleManager = new BubbleManager(settingsStore, windowManager)
     windowManager.setBubbleManager(bubbleManager)
-    bubbleManager.setEnabled(preferences.floatingBubble)
+    windowManager.applyLockPrivacy(preferences)
 
     const mainWindow = windowManager.getWindow()
     if (mainWindow) {
@@ -62,6 +68,7 @@ if (!gotSingleInstanceLock) {
   app.on('before-quit', () => {
     windowManager?.setQuitting(true)
     windowManager?.disposeGlobalShortcuts()
+    appLock?.dispose()
     disposeAutoUpdater()
   })
 

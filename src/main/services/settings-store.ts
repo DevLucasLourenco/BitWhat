@@ -4,7 +4,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import {
   AppPreferences,
-  DEFAULT_PREFERENCES
+  DEFAULT_PREFERENCES,
+  LOCK_IDLE_MINUTES
 } from '../../shared/types'
 import { logger } from './logger'
 
@@ -13,6 +14,16 @@ interface StoredSettings {
   windowBounds?: Rectangle | undefined
   chromeHeight?: number | undefined
   bubblePosition?: Point | undefined
+  lock?: LockSecret | undefined
+}
+
+// Senha do BitWhat: só o resultado do scrypt (irreversível) e o sal, em hex.
+export interface LockSecret {
+  salt: string
+  hash: string
+  n: number
+  r: number
+  p: number
 }
 
 const SETTINGS_FILE = 'settings.json'
@@ -73,6 +84,15 @@ export class SettingsStore {
     this.save()
   }
 
+  getLockSecret(): LockSecret | undefined {
+    return this.data.lock ? { ...this.data.lock } : undefined
+  }
+
+  setLockSecret(secret: LockSecret | undefined): void {
+    this.data.lock = secret ? { ...secret } : undefined
+    this.save()
+  }
+
   private load(): StoredSettings {
     try {
       if (!fs.existsSync(this.filePath)) {
@@ -90,7 +110,8 @@ export class SettingsStore {
           typeof parsed.chromeHeight === 'number'
             ? Math.max(MIN_CHROME_HEIGHT, Math.min(MAX_CHROME_HEIGHT, parsed.chromeHeight))
             : undefined,
-        bubblePosition: this.sanitizePoint(parsed.bubblePosition)
+        bubblePosition: this.sanitizePoint(parsed.bubblePosition),
+        lock: this.sanitizeLockSecret(parsed.lock)
       }
     } catch (error) {
       logger.warn('Falha ao carregar configurações; usando padrão', error)
@@ -155,13 +176,42 @@ export class SettingsStore {
       sanitized.floatingBubble = input.floatingBubble
     }
 
-    for (const key of ['recentChats', 'typeToSearch', 'bubbleDock', 'onboardingDone'] as const) {
+    for (const key of [
+      'recentChats',
+      'typeToSearch',
+      'bubbleDock',
+      'onboardingDone',
+      'lockOnStart',
+      'lockOnIdle',
+      'lockOnSystemLock'
+    ] as const) {
       if (typeof input[key] === 'boolean') {
         sanitized[key] = input[key]
       }
     }
 
+    if (typeof input.lockIdleMinutes === 'number' && (LOCK_IDLE_MINUTES as readonly number[]).includes(input.lockIdleMinutes)) {
+      sanitized.lockIdleMinutes = input.lockIdleMinutes
+    }
+
+    if (input.lockPrivacy === 'hide' || input.lockPrivacy === 'silence' || input.lockPrivacy === 'keep') {
+      sanitized.lockPrivacy = input.lockPrivacy
+    }
+
     return sanitized
+  }
+
+  private sanitizeLockSecret(input: unknown): LockSecret | undefined {
+    if (!input || typeof input !== 'object') {
+      return undefined
+    }
+    const candidate = input as Partial<LockSecret>
+    const isHex = (value: unknown): value is string => typeof value === 'string' && /^[0-9a-f]{32,128}$/.test(value)
+    const isInt = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value) && value > 0
+    if (!isHex(candidate.salt) || !isHex(candidate.hash) || !isInt(candidate.n) || !isInt(candidate.r) || !isInt(candidate.p)) {
+      return undefined
+    }
+    return { salt: candidate.salt, hash: candidate.hash, n: candidate.n, r: candidate.r, p: candidate.p }
   }
 
   private sanitizePoint(point: unknown): Point | undefined {

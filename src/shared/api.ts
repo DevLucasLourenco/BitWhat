@@ -1,4 +1,13 @@
-import type { AppInfo, AppPreferences, RecentChat, UpdateCheckResult, WhatsAppHealth, WhatsAppStatus } from './types'
+import type {
+  AppInfo,
+  AppPreferences,
+  LockResult,
+  LockState,
+  RecentChat,
+  UpdateCheckResult,
+  WhatsAppHealth,
+  WhatsAppStatus
+} from './types'
 
 export interface UpdateInfo {
   version: string
@@ -27,4 +36,13 @@ export interface BitWhatApi {
   onShowShortcuts: (callback: () => void) => () => void
   onRecentsChanged: (callback: (recents: RecentChat[]) => void) => () => void
   openRecent: (index: number) => void
+  getLockState: () => Promise<LockState>
+  onLockChanged: (callback: (state: LockState) => void) => () => void
+  lockNow: () => Promise<void>
+  unlock: (password: string) => Promise<LockResult>
+  // current: senha atual (null ao criar a primeira).
+  setLockPassword: (current: string | null, next: string) => Promise<LockResult>
+  removeLockPassword: (current: string) => Promise<LockResult>
+  // Esqueci a senha: desconecta o WhatsApp e remove a senha.
+  forgotLockPassword: () => Promise<void>
 }

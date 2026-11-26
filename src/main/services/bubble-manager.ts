@@ -168,8 +168,11 @@ export class BubbleManager {
     const anchor = this.window.getBounds()
     // No Windows, "&" no rótulo vira atalho de letra; "&&" mostra o caractere.
     const escapeLabel = (text: string): string => text.replace(/&/g, '&&')
-    const unreadItems: MenuItemConstructorOptions[] =
-      unread.length > 0
+    // Bloqueado (senha do BitWhat): sem nomes, salvo se "Manter como está".
+    const hideNames = this.windowManager.getLockPrivacy() !== 'keep'
+    const unreadItems: MenuItemConstructorOptions[] = hideNames
+      ? [{ label: 'BitWhat bloqueado', enabled: false }]
+      : unread.length > 0
         ? [
             { label: 'Não lidas', enabled: false },
             ...unread.map((chat) => ({

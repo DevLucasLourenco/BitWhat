@@ -24,6 +24,7 @@ import {
   AppPreferences,
   ChatFormat,
   DEFAULT_PREFERENCES,
+  LockState,
   RecentChat,
   ThemePreference,
   UpdateCheckResult,
@@ -31,6 +32,8 @@ import {
   WhatsAppStatus
 } from '../../shared/types'
 import type { UpdateInfo } from '../../shared/api'
+import { SegmentedControl, SwitchRow } from './controls'
+import { LockScreen, SecuritySettings } from './Lock'
 
 const DEFAULT_STATUS: WhatsAppStatus = {
   state: 'initializing',
@@ -49,13 +52,14 @@ const chatFormatOptions: Array<{ value: ChatFormat; label: string }> = [
   { value: 'mini', label: 'Mini' }
 ]
 
-type SettingsTab = 'appearance' | 'behavior' | 'notifications' | 'about'
+type SettingsTab = 'appearance' | 'behavior' | 'notifications' | 'security' | 'about'
 type Overlay = 'none' | 'settings' | 'shortcuts' | 'onboarding'
 
 const settingsTabs: Array<{ value: SettingsTab; label: string }> = [
   { value: 'appearance', label: 'Aparência' },
   { value: 'behavior', label: 'Comportamento' },
   { value: 'notifications', label: 'Notificações' },
+  { value: 'security', label: 'Segurança' },
   { value: 'about', label: 'Sobre' }
 ]
 
@@ -67,7 +71,8 @@ const shortcutGroups: Array<{ title: string; items: Array<{ keys: string[]; labe
     items: [
       { keys: ['Ctrl', 'Shift', 'W'], label: 'Mostrar ou ocultar o BitWhat (de qualquer lugar)' },
       { keys: ['Ctrl', 'Shift', 'R'], label: 'Recarregar o WhatsApp (também F5 ou Ctrl+R)' },
-      { keys: ['Ctrl', '/'], label: 'Esta lista de atalhos (também F1)' }
+      { keys: ['Ctrl', '/'], label: 'Esta lista de atalhos (também F1)' },
+      { keys: ['Ctrl', 'L'], label: 'Bloquear o BitWhat (com senha criada em Segurança)' }
     ]
   },
   {
@@ -147,6 +152,7 @@ export function App(): JSX.Element {
   const [health, setHealth] = useState<WhatsAppHealth>({ ok: true, issues: [] })
   const [recents, setRecents] = useState<RecentChat[]>([])
   const [version, setVersion] = useState('')
+  const [lock, setLock] = useState<LockState>({ enabled: false, locked: false })
 
   const settingsOpen = overlay === 'settings'
 
@@ -165,12 +171,14 @@ export function App(): JSX.Element {
     })
     void window.bitWhat.getHealth().then(setHealth)
     void window.bitWhat.getAppInfo().then((info) => setVersion(info.version))
+    void window.bitWhat.getLockState().then(setLock)
 
     const offStatus = window.bitWhat.onStatusChanged(setStatus)
     const offPreferences = window.bitWhat.onPreferencesChanged(setPreferencesState)
     const offUpdateReady = window.bitWhat.onUpdateReady(setUpdateInfo)
     const offHealth = window.bitWhat.onHealthChanged(setHealth)
     const offRecents = window.bitWhat.onRecentsChanged(setRecents)
+    const offLock = window.bitWhat.onLockChanged(setLock)
     const offShortcuts = window.bitWhat.onShowShortcuts(() =>
       setOverlay((current) => (current === 'shortcuts' ? 'none' : 'shortcuts'))
     )
@@ -181,6 +189,7 @@ export function App(): JSX.Element {
       offUpdateReady()
       offHealth()
       offRecents()
+      offLock()
       offShortcuts()
     }
   }, [])
@@ -188,6 +197,14 @@ export function App(): JSX.Element {
   // Atalhos com o foco na barra do app (no WhatsApp, quem trata é o processo principal).
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
+      if (lock.locked) {
+        return
+      }
+      if (lock.enabled && event.ctrlKey && !event.shiftKey && !event.altKey && event.key.toLowerCase() === 'l') {
+        event.preventDefault()
+        void window.bitWhat.lockNow()
+        return
+      }
       if (event.key === 'F1' || (event.ctrlKey && event.key === '/')) {
         event.preventDefault()
         setOverlay((current) => (current === 'shortcuts' ? 'none' : 'shortcuts'))
@@ -199,7 +216,14 @@ export function App(): JSX.Element {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [overlay])
+  }, [overlay, lock])
+
+  // Bloqueado: a barra do app fica atrás da tela de senha, sem foco nem clique.
+  useEffect(() => {
+    if (chromeRef.current) {
+      chromeRef.current.inert = lock.locked
+    }
+  }, [lock.locked])
 
   // Boas-vindas: uma vez, depois do primeiro login.
   useEffect(() => {
@@ -296,7 +320,11 @@ export function App(): JSX.Element {
     .filter((recent) => !recent.current)
     .slice(0, 5)
   const showRecentsBar =
-    preferences.recentChats && preferences.whatsappPanel === 'chat' && statusTone === 'ready' && otherRecents.length > 0
+    !lock.locked &&
+    preferences.recentChats &&
+    preferences.whatsappPanel === 'chat' &&
+    statusTone === 'ready' &&
+    otherRecents.length > 0
 
   return (
     <main className="app-shell">
@@ -506,6 +534,14 @@ export function App(): JSX.Element {
                 </>
               )}
 
+              {settingsTab === 'security' && (
+                <SecuritySettings
+                  lock={lock}
+                  preferences={preferences}
+                  setPreferences={setPreferences}
+                />
+              )}
+
               {settingsTab === 'about' && (
                 <div className="about">
                   <div className="about-row">
@@ -659,53 +695,8 @@ export function App(): JSX.Element {
             : status.detail ?? 'Aguarde um instante…'}
         </span>
       </section>
+
+      {lock.locked && <LockScreen />}
     </main>
-  )
-}
-
-interface SegmentedControlProps<T extends string> {
-  value: T
-  options: Array<{ value: T; label: string; icon?: JSX.Element }>
-  onChange: (value: T) => void
-}
-
-function SegmentedControl<T extends string>({ value, options, onChange }: SegmentedControlProps<T>): JSX.Element {
-  return (
-    <div className="segmented" role="group">
-      {options.map((option) => (
-        <button
-          key={option.value}
-          className={option.value === value ? 'selected' : undefined}
-          type="button"
-          onClick={() => onChange(option.value)}
-        >
-          {option.icon}
-          {option.label}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-interface SwitchRowProps {
-  checked: boolean
-  label: string
-  title?: string
-  disabled?: boolean
-  onChange: (checked: boolean) => void
-}
-
-function SwitchRow({ checked, label, title, disabled = false, onChange }: SwitchRowProps): JSX.Element {
-  return (
-    <label className={disabled ? 'switch-row disabled' : 'switch-row'} title={title}>
-      <span>{label}</span>
-      <input
-        type="checkbox"
-        role="switch"
-        checked={checked}
-        disabled={disabled}
-        onChange={(event) => onChange(event.currentTarget.checked)}
-      />
-    </label>
   )
 }

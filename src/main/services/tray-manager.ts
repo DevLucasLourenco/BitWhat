@@ -5,6 +5,7 @@ import { getAssetPath, getTrayImage } from './assets'
 import { logger } from './logger'
 import { SessionManager } from './session-manager'
 import { SettingsStore } from './settings-store'
+import type { AppLock } from './app-lock'
 import { WindowManager } from './window-manager'
 
 const statusToImageFile: Record<WhatsAppState, string> = {
@@ -34,7 +35,8 @@ export class TrayManager {
   constructor(
     private readonly windowManager: WindowManager,
     private readonly sessionManager: SessionManager,
-    private readonly settingsStore: SettingsStore
+    private readonly settingsStore: SettingsStore,
+    private readonly appLock: AppLock
   ) {}
 
   create(): void {
@@ -51,11 +53,15 @@ export class TrayManager {
       return
     }
 
+    const lockState = this.appLock.getState()
     const menu = Menu.buildFromTemplate([
       {
         label: 'Abrir WhatsApp',
         click: () => this.windowManager.show()
       },
+      ...(lockState.enabled && !lockState.locked
+        ? [{ label: 'Bloquear agora', click: () => void this.appLock.lock('menu da bandeja') }]
+        : []),
       {
         label: 'Recarregar',
         click: () => this.windowManager.reloadWhatsApp()

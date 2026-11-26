@@ -3,6 +3,7 @@ import path from 'node:path'
 import { IPC } from '../shared/ipc'
 import { AppPreferences } from '../shared/types'
 import { openExternalSafely } from './services/navigation-guard'
+import type { AppLock } from './services/app-lock'
 import { SessionManager } from './services/session-manager'
 import { SettingsStore } from './services/settings-store'
 import { WindowManager } from './services/window-manager'
@@ -13,9 +14,10 @@ interface IpcDependencies {
   windowManager: WindowManager
   sessionManager: SessionManager
   settingsStore: SettingsStore
+  appLock: AppLock
 }
 
-export function registerIpc({ windowManager, sessionManager, settingsStore }: IpcDependencies): void {
+export function registerIpc({ windowManager, sessionManager, settingsStore, appLock }: IpcDependencies): void {
   ipcMain.handle(IPC.getStatus, () => windowManager.getStatus())
   ipcMain.handle(IPC.getHealth, () => windowManager.getHealth())
   ipcMain.handle(IPC.getPreferences, () => settingsStore.getPreferences())
@@ -34,6 +36,10 @@ export function registerIpc({ windowManager, sessionManager, settingsStore }: Ip
   })
 
   ipcMain.handle(IPC.setPreferences, async (_event, preferences: Partial<AppPreferences>) => {
+    // Bloqueado, a tela de senha não muda configurações.
+    if (appLock.isLocked()) {
+      return settingsStore.getPreferences()
+    }
     const nextPreferences = settingsStore.updatePreferences(preferences ?? {})
     applyLoginItemSettings(nextPreferences)
     await windowManager.applyPreferences(nextPreferences)
@@ -64,6 +70,31 @@ export function registerIpc({ windowManager, sessionManager, settingsStore }: Ip
   })
 
   ipcMain.handle(IPC.quit, () => windowManager.quit())
+
+  // Senha do BitWhat. A senha só trafega por aqui; nunca vai para o log.
+  ipcMain.handle(IPC.getLockState, () => appLock.getState())
+  ipcMain.handle(IPC.lockNow, () => {
+    appLock.lock()
+  })
+  ipcMain.handle(IPC.unlock, (_event, password: unknown) => appLock.unlock(password))
+  ipcMain.handle(IPC.setLockPassword, (_event, current: unknown, next: unknown) => appLock.setPassword(current, next))
+  ipcMain.handle(IPC.removeLockPassword, (_event, current: unknown) => appLock.removePassword(current))
+  ipcMain.handle(IPC.forgotLockPassword, async () => {
+    if (!appLock.isEnabled()) {
+      return
+    }
+    try {
+      await sessionManager.clearWhatsappSession()
+    } catch (error) {
+      // Sem desconectar o WhatsApp, a senha não pode ser removida.
+      logger.error('Falha ao limpar sessão em "Esqueci a senha"', error)
+      throw error
+    }
+    // Só desbloqueia depois que a página antiga (ainda logada) saiu da tela.
+    windowManager.markSessionCleared()
+    await windowManager.reloadWhatsAppAndWait()
+    appLock.reset()
+  })
 }
 
 export function applyLoginItemSettings(preferences: AppPreferences): void {

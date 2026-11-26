@@ -13,6 +13,8 @@ import {
   APP_NAME,
   AppPreferences,
   DEFAULT_PREFERENCES,
+  LockPrivacy,
+  LockState,
   resolveWhatsAppPanelMode,
   ThemePreference,
   WHATSAPP_PARTITION,
@@ -27,6 +29,7 @@ import {
 import { IPC } from '../../shared/ipc'
 import { getAssetPath } from './assets'
 import { attachNavigationGuard, openExternalSafely } from './navigation-guard'
+import type { AppLock } from './app-lock'
 import { SessionManager } from './session-manager'
 import { SettingsStore } from './settings-store'
 import { TrayManager } from './tray-manager'
@@ -187,11 +190,77 @@ export class WindowManager {
   )
   private unresponsiveTimer?: NodeJS.Timeout | undefined
   private loadStartedAt = Date.now()
+  // Senha do BitWhat: bloqueado, a view do WhatsApp sai da janela e fica só a
+  // tela de senha (renderer).
+  private locked: boolean
 
-  constructor(settingsStore: SettingsStore, sessionManager: SessionManager) {
+  constructor(
+    settingsStore: SettingsStore,
+    sessionManager: SessionManager,
+    private readonly appLock: AppLock
+  ) {
     this.settingsStore = settingsStore
     this.sessionManager = sessionManager
     this.chromeHeight = settingsStore.getChromeHeight()
+    this.locked = appLock.isLocked()
+    appLock.onChange((state) => this.applyLockState(state))
+  }
+
+  isLocked(): boolean {
+    return this.locked
+  }
+
+  // O que esconder enquanto bloqueado ('keep' quando desbloqueado).
+  getLockPrivacy(): LockPrivacy {
+    return this.locked ? this.settingsStore.getPreferences().lockPrivacy : 'keep'
+  }
+
+  // Notificações e balão conforme preferências e bloqueio.
+  applyLockPrivacy(preferences = this.settingsStore.getPreferences()): void {
+    const privacy = this.getLockPrivacy()
+    this.sessionManager.setNotificationsMuted(preferences.muteNotifications || privacy === 'silence')
+    this.bubbleManager?.setEnabled(preferences.floatingBubble && privacy !== 'silence')
+    void this.applyWhatsAppNotificationMode()
+  }
+
+  private applyLockState(state: LockState): void {
+    const changed = this.locked !== state.locked
+    this.locked = state.locked
+    const view = this.whatsappView
+    if (changed && this.mainWindow && view) {
+      if (state.locked) {
+        if (this.htmlFullScreen) {
+          void view.webContents
+            .executeJavaScript('document.fullscreenElement && document.exitFullscreen()', true)
+            .catch(() => undefined)
+        }
+        this.mainWindow.removeBrowserView(view)
+        this.mainWindow.webContents.focus()
+      } else {
+        this.mainWindow.setBrowserView(view)
+        this.updateWhatsAppBounds()
+        if (this.mainWindow.isFocused()) {
+          view.webContents.focus()
+        }
+      }
+    }
+    this.applyLockPrivacy()
+    this.trayManager?.refreshMenu()
+    this.mainWindow?.webContents.send(IPC.lockChanged, state)
+  }
+
+  // Lido pelo preload do WhatsApp ao criar notificações (ver whatsapp-preload.ts).
+  private async applyWhatsAppNotificationMode(): Promise<void> {
+    const webContents = this.whatsappView?.webContents
+    if (!webContents || webContents.isDestroyed()) {
+      return
+    }
+    const mode = this.getLockPrivacy() === 'hide' ? 'hide' : 'normal'
+    try {
+      await webContents.executeJavaScript(`window.__bitWhatNotificationMode = ${JSON.stringify(mode)}`, true)
+    } catch (error) {
+      logger.warn('Falha ao ajustar notificações do bloqueio', error)
+    }
   }
 
   async create(startHidden: boolean): Promise<void> {
@@ -369,7 +438,7 @@ export class WindowManager {
   // Conversas não lidas visíveis no topo da lista (só para o menu do balão).
   async getUnreadChats(): Promise<Array<{ name: string; count: number }>> {
     const webContents = this.whatsappView?.webContents
-    if (!webContents || webContents.isDestroyed() || this.status.state !== 'ready') {
+    if (!webContents || webContents.isDestroyed() || this.status.state !== 'ready' || this.getLockPrivacy() !== 'keep') {
       return []
     }
     try {
@@ -423,6 +492,23 @@ export class WindowManager {
     this.scheduleLoadTimeout()
   }
 
+  // Recarrega e espera o documento novo (o antigo, ainda logado, sai da tela).
+  async reloadWhatsAppAndWait(timeoutMs = 15_000): Promise<void> {
+    const webContents = this.whatsappView?.webContents
+    if (!webContents || webContents.isDestroyed()) {
+      return
+    }
+    const loaded = new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, timeoutMs)
+      webContents.once('dom-ready', () => {
+        clearTimeout(timer)
+        resolve()
+      })
+    })
+    this.reloadWhatsApp()
+    await loaded
+  }
+
   markSessionCleared(): void {
     this.setStatus(this.createStatus('session-cleared', 'Sessão limpa', 'Faça login novamente pelo QR Code.'))
   }
@@ -439,8 +525,7 @@ export class WindowManager {
     }
 
     this.mainWindow.setAlwaysOnTop(preferences.alwaysOnTop, 'floating')
-    this.sessionManager.setNotificationsMuted(preferences.muteNotifications)
-    this.bubbleManager?.setEnabled(preferences.floatingBubble)
+    this.applyLockPrivacy(preferences)
     this.trayManager?.refreshMenu()
     applyNativeTheme(preferences.theme)
     this.syncBackgroundColors()
@@ -464,7 +549,7 @@ export class WindowManager {
   // Abre uma conversa da barra de recentes (índice na lista da página).
   async openRecentChat(index: number): Promise<void> {
     const webContents = this.whatsappView?.webContents
-    if (!webContents || webContents.isDestroyed()) {
+    if (!webContents || webContents.isDestroyed() || this.locked) {
       return
     }
     try {
@@ -535,7 +620,9 @@ export class WindowManager {
       }
     })
 
-    this.mainWindow.setBrowserView(this.whatsappView)
+    if (!this.locked) {
+      this.mainWindow.setBrowserView(this.whatsappView)
+    }
     this.whatsappView.webContents.setUserAgent(WHATSAPP_BROWSER_USER_AGENT)
     this.whatsappView.setBackgroundColor(getWhatsAppBackgroundColor())
     this.updateWhatsAppBounds()
@@ -681,6 +768,7 @@ export class WindowManager {
       void this.applyWhatsAppDownloadPromoBlock()
       void this.applyWhatsAppQuickSwitch()
       void this.applyWhatsAppPanelMode()
+      void this.applyWhatsAppNotificationMode()
       this.detectWhatsAppState()
     })
 
@@ -695,6 +783,7 @@ export class WindowManager {
       void this.applyWhatsAppDownloadPromoBlock()
       void this.applyWhatsAppQuickSwitch()
       void this.applyWhatsAppPanelMode()
+      void this.applyWhatsAppNotificationMode()
       this.detectWhatsAppState()
     })
 
@@ -740,6 +829,19 @@ export class WindowManager {
       if (input.key === 'F5' || (input.control && input.key.toLowerCase() === 'r')) {
         event.preventDefault()
         this.reloadWhatsApp()
+        return
+      }
+      // Ctrl+L: bloquear (com senha definida).
+      if (
+        input.type === 'keyDown' &&
+        input.control &&
+        !input.shift &&
+        !input.alt &&
+        input.key.toLowerCase() === 'l' &&
+        this.appLock.isEnabled()
+      ) {
+        event.preventDefault()
+        this.appLock.lock('Ctrl+L')
         return
       }
       // Ctrl+/ ou F1: lista de atalhos no topo do app.

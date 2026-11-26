@@ -21,6 +21,14 @@ export const IPC = {
   showShortcuts: 'app:show-shortcuts',
   recentsChanged: 'whatsapp:recents-changed',
   openRecent: 'whatsapp:open-recent',
+  // Senha do BitWhat.
+  getLockState: 'lock:get-state',
+  lockChanged: 'lock:changed',
+  lockNow: 'lock:lock-now',
+  unlock: 'lock:unlock',
+  setLockPassword: 'lock:set-password',
+  removeLockPassword: 'lock:remove-password',
+  forgotLockPassword: 'lock:forgot-password',
   // Balão flutuante (janela própria, preload próprio).
   bubbleDragStart: 'bubble:drag-start',
   bubbleDragMove: 'bubble:drag-move',

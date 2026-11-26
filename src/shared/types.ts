@@ -42,6 +42,23 @@ export type WhatsAppPanel = 'contacts' | 'chat'
 export type ChatFormat = 'standard' | 'mini'
 export type WhatsAppPanelMode = WhatsAppPanel | 'mini-chat' | 'image'
 
+// Senha do próprio BitWhat (não é a do WhatsApp). Com o app bloqueado:
+// 'hide' mostra notificações sem nome nem texto e o balão sem nomes;
+// 'silence' não mostra notificações nem o balão; 'keep' não muda nada.
+export type LockPrivacy = 'hide' | 'silence' | 'keep'
+
+export const LOCK_IDLE_MINUTES = [1, 5, 10, 15, 30, 60] as const
+export const MIN_LOCK_PASSWORD_LENGTH = 4
+export const MAX_LOCK_PASSWORD_LENGTH = 128
+
+export interface LockState {
+  // Há senha definida.
+  enabled: boolean
+  locked: boolean
+}
+
+export type LockResult = { ok: true } | { ok: false; error: string; retryAfterMs?: number | undefined }
+
 export interface AppPreferences {
   alwaysOnTop: boolean
   startMinimized: boolean
@@ -59,6 +76,12 @@ export interface AppPreferences {
   bubbleDock: boolean
   // Dicas de boas-vindas já vistas.
   onboardingDone: boolean
+  // Bloqueio por senha (só vale com senha definida; ver LockState).
+  lockOnStart: boolean
+  lockOnIdle: boolean
+  lockIdleMinutes: number
+  lockOnSystemLock: boolean
+  lockPrivacy: LockPrivacy
 }
 
 export const DEFAULT_PREFERENCES: AppPreferences = {
@@ -73,7 +96,12 @@ export const DEFAULT_PREFERENCES: AppPreferences = {
   recentChats: true,
   typeToSearch: true,
   bubbleDock: true,
-  onboardingDone: false
+  onboardingDone: false,
+  lockOnStart: true,
+  lockOnIdle: false,
+  lockIdleMinutes: 10,
+  lockOnSystemLock: false,
+  lockPrivacy: 'hide'
 }
 
 // Conversa recente mostrada na barra do modo conversa. Só o nome (já visível
